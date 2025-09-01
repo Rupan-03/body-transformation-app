@@ -2,17 +2,31 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
-const weeklyGoalUpdate = require('./scheduler'); // <-- IMPORT THE SCHEDULER
 
 dotenv.config();
 connectDB();
 
 const app = express();
 
-app.use(cors({
-    origin: '*', // Allows requests from any origin
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-}));
+// --- THIS IS THE CRITICAL CHANGE ---
+// Define the exact URL of your frontend that is allowed to connect
+const allowedOrigins = ['https://body-transformation-app.vercel.app'];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  }
+};
+
+app.use(cors(corsOptions));
+// --- END OF CRITICAL CHANGE ---
+
 app.use(express.json());
 
 app.get('/', (req, res) => res.send('API is running...'));
@@ -25,7 +39,4 @@ app.use('/api/logs', require('./routes/api/logs'));
 
 const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-    console.log(`Server started on port ${PORT}`);
-    weeklyGoalUpdate(); // <-- START THE SCHEDULER
-});
+app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
