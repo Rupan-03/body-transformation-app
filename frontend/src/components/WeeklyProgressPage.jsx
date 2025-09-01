@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ArrowLeft, RefreshCw, BarChart3 } from 'lucide-react';
 
-const GOALS_API_URL = 'http://localhost:5001/api/goals';
+const GOALS_API_URL = '${import.meta.env.VITE_API_URL}/goals';
 
 // A reusable UI component to display a stat with a progress bar.
 // This helps visualize performance against a goal.

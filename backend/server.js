@@ -9,7 +9,10 @@ connectDB();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: '*', // Allows requests from any origin
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+}));
 app.use(express.json());
 
 app.get('/', (req, res) => res.send('API is running...'));

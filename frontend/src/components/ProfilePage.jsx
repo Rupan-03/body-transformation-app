@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const PROFILE_API_URL = 'http://localhost:5001/api/profile';
+const PROFILE_API_URL = '${import.meta.env.VITE_API_URL}/profile';
 
 export default function ProfilePage({ onProfileSave }) {
     const [formData, setFormData] = useState({
