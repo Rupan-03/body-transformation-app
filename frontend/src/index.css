@@ -1,14 +1,12 @@
-/*
-  This single line is the new, correct way for Tailwind v4.
-  It imports Tailwind's base, component, and utility styles all at once,
-  and provides the context needed for @apply to work.
-*/
 @import "tailwindcss";
 
-/*
-  You can still add your own base styles below the import if needed.
-  This is how we get the gray background for the whole page.
-*/
 body {
-  @apply bg-gray-50;
+  @apply bg-gray-50 text-gray-800 antialiased;
+}
+
+/* This ensures elements that are animating in start from an invisible state */
+@layer utilities {
+  .animate-in {
+    animation-fill-mode: forwards;
+  }
 }

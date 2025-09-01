@@ -22,19 +22,48 @@ exports.setTargetWeight = async (req, res) => {
 // @access  Private
 exports.getWeeklySummary = async (req, res) => {
     try {
-        // 1. Find all logs for the user
+        // 1. Get the user's current goals to compare against
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+        
+        // 2. Get all of the user's logs, sorted by date
         const logs = await DailyLog.find({ user: req.user.id }).sort({ date: 'asc' });
 
-        // 2. Filter to get only the logs recorded on a Sunday (Day 0)
-        const sundayLogs = logs.filter(log => new Date(log.date).getDay() === 0);
+        // 3. Group the logs by week (Sunday to Saturday)
+        const logsByWeek = logs.reduce((acc, log) => {
+            const logDate = new Date(log.date);
+            const weekStartDate = new Date(logDate);
+            weekStartDate.setDate(logDate.getDate() - logDate.getDay());
+            weekStartDate.setHours(0, 0, 0, 0);
+            const weekKey = weekStartDate.toISOString();
 
-        // 3. Format the data for the frontend
-        const weeklySummary = sundayLogs.map(log => ({
-            date: log.date,
-            weight: log.weight
-        }));
+            if (!acc[weekKey]) acc[weekKey] = [];
+            acc[weekKey].push(log);
+            return acc;
+        }, {});
 
-        res.json(weeklySummary);
+        // 4. Process each week to calculate averages and summaries
+        const weeklySummaries = Object.entries(logsByWeek).map(([weekKey, weekLogs]) => {
+            const totalCalories = weekLogs.reduce((sum, log) => sum + log.calorieIntake, 0);
+            const totalProtein = weekLogs.reduce((sum, log) => sum + log.proteinIntake, 0);
+            const logCount = weekLogs.length;
+
+            // Get the weight from the last log entry of that week
+            const endOfWeekWeight = weekLogs[weekLogs.length - 1].weight;
+
+            return {
+                weekOf: weekKey,
+                endOfWeekWeight: endOfWeekWeight,
+                avgCalories: Math.round(totalCalories / logCount),
+                avgProtein: Math.round(totalProtein / logCount),
+                calorieGoal: user.maintenanceCalories ? user.maintenanceCalories - 500 : 0,
+                proteinGoal: user.proteinGoal || 0,
+            };
+        });
+
+        // 5. Sort to show the most recent week first and send to frontend
+        res.json(weeklySummaries.sort((a, b) => new Date(b.weekOf) - new Date(a.weekOf)));
+
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
