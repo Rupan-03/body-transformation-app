@@ -3,7 +3,12 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 
-dotenv.config();
+// --- THIS IS THE CRITICAL CHANGE ---
+// Only load environment variables from .env file in development
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
+// --- END OF CRITICAL CHANGE ---
 connectDB();
 
 const app = express();
