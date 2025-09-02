@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { PlusCircle, Calendar, ChevronDown } from 'lucide-react';
 
-const LOGS_API_URL = '${import.meta.env.VITE_API_URL}/logs';
+const LOGS_API_URL = `${import.meta.env.VITE_API_URL}/logs`;
 
 // --- Helper function to get the start of the week (Sunday) for a given date ---
 const getStartOfWeek = (date) => {
