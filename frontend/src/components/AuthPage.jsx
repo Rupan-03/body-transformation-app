@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const AUTH_API_URL = '${import.meta.env.VITE_API_URL}auth';
+const AUTH_API_URL = '${import.meta.env.VITE_API_URL}/auth';
 
 export default function AuthPage({ onAuthSuccess }) {
     const [isRegister, setIsRegister] = useState(true);
