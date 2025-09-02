@@ -7,7 +7,7 @@ import ProfilePage from './components/ProfilePage';
 import DashboardPage from './components/DashboardPage';
 import WeeklyProgressPage from './components/WeeklyProgressPage'; // <-- IMPORT NEW PAGE
 
-const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/api/auth`;
+const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
 function App() {
     const [token, setToken] = useState(localStorage.getItem('token'));
