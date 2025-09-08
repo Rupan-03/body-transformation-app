@@ -136,18 +136,42 @@ export default function DailyLog() {
                                         </div>
                                         <ChevronDown size={20} className={`text-gray-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
                                     </button>
-                                    <div className={`transition-all duration-500 ease-in-out ${isOpen ? 'max-h-screen' : 'max-h-0'}`}>
+                                    <div className={`transition-all duration-500 ease-in-out ${isOpen ? 'max-h-[1000px]' : 'max-h-0'}`}> {/* Increased max-h for more items */}
+                                        
+                                        {/* --- THIS IS THE RESPONSIVE FIX --- */}
                                         <ul className="p-2 space-y-1 sm:p-4">
                                             {weekLogs.sort((a,b) => new Date(b.date) - new Date(a.date)).map(log => (
-                                                <li key={log._id} className="grid items-center grid-cols-5 gap-2 p-3 rounded-md hover:bg-white transition-colors">
-                                                    <div className="font-semibold text-gray-800 col-span-2 sm:col-span-1">{new Date(log.date).toLocaleDateString(undefined, { weekday: 'long' })}</div>
-                                                    <div className="text-sm text-gray-600"><span className="font-medium text-gray-800">{log.weight}</span> kg</div>
-                                                    <div className="text-sm text-gray-600"><span className="font-medium text-gray-800">{log.calorieIntake}</span> kcal</div>
-                                                    <div className="text-sm text-gray-600"><span className="font-medium text-gray-800">{log.proteinIntake}</span> g</div>
-                                                    <div className="text-right">
-                                                        <button onClick={() => handleDeleteLogClick(log._id)} title="Delete this log" className="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600 transition-colors">
+                                                <li key={log._id} className="p-3 transition-colors rounded-md hover:bg-white">
+                                                    <div className="flex items-center justify-between">
+                                                        {/* --- On ALL screens, show the day and the delete button --- */}
+                                                        <div className="font-semibold text-gray-800">{new Date(log.date).toLocaleDateString(undefined, { weekday: 'long' })}</div>
+                                                        <button onClick={() => handleDeleteLogClick(log._id)} title="Delete this log" className="p-1 text-gray-400 rounded-full hover:bg-red-100 hover:text-red-600">
                                                             <Trash2 size={16} />
                                                         </button>
+                                                    </div>
+                                                    
+                                                    {/* --- On MOBILE (small screens), show labeled data stacked vertically --- */}
+                                                    <div className="grid grid-cols-3 gap-4 mt-2 sm:hidden">
+                                                        <div>
+                                                            <div className="text-xs text-gray-500">Weight</div>
+                                                            <div className="text-sm font-medium text-gray-800">{log.weight} kg</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-xs text-gray-500">Calories</div>
+                                                            <div className="text-sm font-medium text-gray-800">{log.calorieIntake} kcal</div>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-xs text-gray-500">Protein</div>
+                                                            <div className="text-sm font-medium text-gray-800">{log.proteinIntake} g</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* --- On DESKTOP (sm screens and up), hide the mobile view and show the inline view --- */}
+                                                    <div className="items-center hidden sm:grid sm:grid-cols-4 sm:gap-2">
+                                                        <div className="font-semibold text-gray-800 sm:col-span-1">{/* Placeholder for alignment */}</div>
+                                                        <div className="text-sm text-gray-600"><span className="font-medium text-gray-800">{log.weight}</span> kg</div>
+                                                        <div className="text-sm text-gray-600"><span className="font-medium text-gray-800">{log.calorieIntake}</span> kcal</div>
+                                                        <div className="text-sm text-gray-600"><span className="font-medium text-gray-800">{log.proteinIntake}</span> g</div>
                                                     </div>
                                                 </li>
                                             ))}
