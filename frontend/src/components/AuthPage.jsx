@@ -5,7 +5,7 @@ const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
 export default function AuthPage({ onAuthSuccess }) {
     const [isRegister, setIsRegister] = useState(true);
-    const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+    const [formData, setFormData] = useState({ name: '', email: '', password: '' , primaryGoal: 'fat_loss'});
     const [error, setError] = useState('');
 
     const handleSubmit = async (e) => {
@@ -36,10 +36,26 @@ export default function AuthPage({ onAuthSuccess }) {
                 {error && <p className="p-3 text-sm text-red-700 bg-red-100 rounded-md animate-in fade-in">{error}</p>}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {isRegister && (
+                        <>
                         <div className="animate-in fade-in">
                             <label className="text-sm font-medium text-gray-700">Name</label>
                             <input name="name" type="text" required onChange={handleChange} className="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 transition-shadow" />
                         </div>
+                        <div>
+                                <label className="text-sm font-medium text-gray-700">What is your primary goal?</label>
+                                <div className="flex gap-4 mt-2">
+                                    <label className="flex items-center p-3 border rounded-md cursor-pointer flex-1 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
+                                        <input type="radio" name="primaryGoal" value="fat_loss" checked={formData.primaryGoal === 'fat_loss'} onChange={handleChange} className="w-4 h-4 text-blue-600 border-gray-300" />
+                                        <span className="ml-3 text-sm font-medium text-gray-700">Fat Loss</span>
+                                    </label>
+                                    <label className="flex items-center p-3 border rounded-md cursor-pointer flex-1 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
+                                        <input type="radio" name="primaryGoal" value="muscle_gain" checked={formData.primaryGoal === 'muscle_gain'} onChange={handleChange} className="w-4 h-4 text-blue-600 border-gray-300" />
+                                        <span className="ml-3 text-sm font-medium text-gray-700">Muscle Gain</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </>
+                        
                     )}
                     <div>
                         <label className="text-sm font-medium text-gray-700">Email</label>

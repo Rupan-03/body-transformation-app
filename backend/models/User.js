@@ -13,6 +13,11 @@ const UserSchema = new mongoose.Schema({
         type: String,
         enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'],
     },
+    primaryGoal: {
+        type: String,
+        enum: ['fat_loss', 'muscle_gain'],
+        required: true,
+    },
     
     // Goal fields
     targetWeight: { type: Number },

@@ -5,7 +5,7 @@ import axios from 'axios';
 import AuthPage from './components/AuthPage';
 import ProfilePage from './components/ProfilePage';
 import DashboardPage from './components/DashboardPage';
-import WeeklyProgressPage from './components/WeeklyProgressPage'; // <-- IMPORT NEW PAGE
+import WeeklyProgressPage from './components/WeeklyProgressPage';
 
 const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
@@ -13,8 +13,7 @@ function App() {
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [currentPage, setCurrentPage] = useState('dashboard'); // <-- NEW STATE FOR NAVIGATION
-
+    const [currentPage, setCurrentPage] = useState('dashboard');
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -43,6 +42,7 @@ function App() {
         setToken(null);
         setCurrentPage('dashboard'); // Reset to dashboard on logout
     };
+    // This function is passed down so child components can update the user state
     const handleUserUpdate = (updatedUser) => setUser(updatedUser);
     
     // This is our main content renderer
@@ -52,6 +52,8 @@ function App() {
         }
 
         if (!user) {
+            // Note: For the new goal feature to work, your AuthPage component
+            // will also need to be updated to include the goal selection field.
             return <AuthPage onAuthSuccess={handleAuthSuccess} />;
         }
 
@@ -59,15 +61,17 @@ function App() {
             return <ProfilePage onProfileSave={handleProfileSave} />;
         }
 
-        // --- NEW NAVIGATION LOGIC ---
+        // The main navigation logic
         switch (currentPage) {
             case 'weeklyProgress':
                 return <WeeklyProgressPage onBack={() => setCurrentPage('dashboard')} onUpdateUser={handleUserUpdate} />;
             case 'dashboard':
             default:
-                return <DashboardPage user={user} handleLogout={handleLogout} onNavigate={setCurrentPage} />;
+                // --- THIS IS THE CRITICAL CHANGE ---
+                // We now pass the 'onUpdateUser' function to the DashboardPage.
+                // This allows the "Edit Goal" modal to update the app's central state.
+                return <DashboardPage user={user} handleLogout={handleLogout} onNavigate={setCurrentPage} onUpdateUser={handleUserUpdate} />;
         }
-        // --- END NEW LOGIC ---
     };
 
     return <div className="App">{renderContent()}</div>

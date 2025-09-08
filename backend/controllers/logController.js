@@ -45,3 +45,29 @@ exports.getUserLogs = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
+// @desc    Delete a specific log entry by its ID
+// @route   DELETE /api/logs/:id
+// @access  Private
+exports.deleteLog = async (req, res) => {
+    try {
+        // Find the log by the ID provided in the URL
+        const log = await DailyLog.findById(req.params.id);
+
+        if (!log) {
+            return res.status(404).json({ msg: 'Log entry not found' });
+        }
+
+        // IMPORTANT SECURITY CHECK: Make sure the log belongs to the user trying to delete it
+        if (log.user.toString() !== req.user.id) {
+            return res.status(401).json({ msg: 'User not authorized' });
+        }
+
+        await DailyLog.findByIdAndDelete(req.params.id);
+
+        res.json({ msg: 'Log entry removed' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
