@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-
-const { registerUser, loginUser, getLoggedInUser } = require('../../controllers/authController');
+const { registerUser, loginUser, getLoggedInUser, forgotPassword, resetPassword } = require('../../controllers/authController');
 const authMiddleware = require('../../middleware/authMiddleware');
 
 // @route   POST api/auth/register
@@ -16,6 +15,9 @@ router.post('/login', loginUser);
 // @desc    Get logged in user's data
 // @access  Private (notice the authMiddleware is used here)
 router.get('/user', authMiddleware, getLoggedInUser);
+
+router.post('/forgotpassword', forgotPassword);
+router.put('/resetpassword/:resettoken', resetPassword);
 
 
 module.exports = router;

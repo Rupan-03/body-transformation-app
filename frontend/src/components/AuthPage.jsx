@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { Eye, EyeOff } from 'lucide-react'; // Import Eye icons
 
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}`;
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -8,13 +9,11 @@ export default function AuthPage({ onAuthSuccess, onNavigate }) {
     const [isRegister, setIsRegister] = useState(true);
     const [formData, setFormData] = useState({ name: '', email: '', password: '', primaryGoal: 'fat_loss' });
     const [error, setError] = useState('');
-    
-    // This state object will hold specific errors for each field
     const [errors, setErrors] = useState({});
+    const [showPassword, setShowPassword] = useState(false); // New state for password visibility
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
-        // As the user types, clear the specific error for that field
         if (errors[e.target.name]) {
             const newErrors = { ...errors };
             delete newErrors[e.target.name];
@@ -22,7 +21,6 @@ export default function AuthPage({ onAuthSuccess, onNavigate }) {
         }
     };
     
-    // A dedicated function to handle all form validation
     const validateForm = () => {
         const newErrors = {};
         if (isRegister && !formData.name.trim()) {
@@ -44,12 +42,10 @@ export default function AuthPage({ onAuthSuccess, onNavigate }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        
-        // We run our custom validation first
         const formErrors = validateForm();
         if (Object.keys(formErrors).length > 0) {
             setErrors(formErrors);
-            return; // Stop the submission if there are errors
+            return;
         }
 
         const url = isRegister ? `${API_BASE_URL}/auth/register` : `${API_BASE_URL}/auth/login`;
@@ -72,9 +68,8 @@ export default function AuthPage({ onAuthSuccess, onNavigate }) {
                     <button onClick={() => setIsRegister(true)} className={`flex-1 py-2 text-sm font-medium transition-colors duration-300 ${isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Register</button>
                     <button onClick={() => setIsRegister(false)} className={`flex-1 py-2 text-sm font-medium transition-colors duration-300 ${!isRegister ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>Login</button>
                 </div>
-                {error && <p className="p-3 text-sm text-red-700 bg-red-100 rounded-md animate-in fade-in">{error}</p>}
+                {error && <p className="p-3 text-sm text-red-700 bg-red-100 rounded-md">{error}</p>}
                 
-                {/* The 'noValidate' attribute disables the browser's ugly pop-ups */}
                 <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                     {isRegister && (
                         <>
@@ -103,15 +98,34 @@ export default function AuthPage({ onAuthSuccess, onNavigate }) {
                         <input name="email" type="email" value={formData.email} onChange={handleChange} className={`w-full px-3 py-2 mt-1 border rounded-md shadow-sm transition-shadow ${errors.email ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`} />
                         {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
                     </div>
+                    {/* --- PASSWORD FIELD WITH EYE BUTTON --- */}
                     <div>
                         <label className="text-sm font-medium text-gray-700">Password</label>
-                        <input name="password" type="password" value={formData.password} onChange={handleChange} className={`w-full px-3 py-2 mt-1 border rounded-md shadow-sm transition-shadow ${errors.password ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`} />
+                        <div className="relative mt-1">
+                            <input
+                                name="password"
+                                type={showPassword ? 'text' : 'password'} // Toggle type
+                                value={formData.password}
+                                onChange={handleChange}
+                                className={`w-full px-3 py-2 border rounded-md shadow-sm transition-shadow ${errors.password ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500"
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
                         {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password}</p>}
                     </div>
+                    {/* --- END PASSWORD FIELD --- */}
                     
                     {!isRegister && (
                          <div className="text-right">
-                            <button type="button" onClick={() => onNavigate('forgotPassword')} className="text-sm font-medium text-blue-600 hover:underline">Forgot Password?</button>
+                            <button type="button" onClick={() => onNavigate('forgotPassword')} className="text-sm font-medium text-blue-600 hover:underline">
+                                Forgot Password?
+                            </button>
                         </div>
                     )}
                     

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// Import all the top-level "page" and "layout" components that App.jsx manages.
+// Import all our page components
 import AuthPage from './components/AuthPage';
 import ProfilePage from './components/ProfilePage';
 import AppLayout from './components/AppLayout';
@@ -9,91 +9,100 @@ import DashboardPage from './components/DashboardPage';
 import LogHistoryPage from './components/LogHistoryPage';
 import WeeklyProgressPage from './components/WeeklyProgressPage';
 import SettingsPage from './components/SettingsPage';
+import ForgotPasswordPage from './components/ForgotPasswordPage';
+import ResetPasswordPage from './components/ResetPasswordPage';
 
 const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
-// This is the main component for the entire application.
 function App() {
-    // --- State Management ---
-    // 'token' is the user's authentication JWT, persisted in localStorage for session continuity.
     const [token, setToken] = useState(localStorage.getItem('token'));
-    // 'user' holds the data of the currently logged-in user.
     const [user, setUser] = useState(null);
-    // 'loading' is used to show a loading indicator while fetching initial user data.
     const [loading, setLoading] = useState(true);
-    // 'currentPage' controls which page is displayed inside the main AppLayout (e.g., dashboard, settings).
-    const [currentPage, setCurrentPage] = useState('dashboard'); 
+    const [currentPage, setCurrentPage] = useState('dashboard');
+    
+    // This state now reads the browser's URL path.
+    // This is ESSENTIAL for handling the password reset link from an email.
+    const [route, setRoute] = useState(window.location.pathname);
 
-    // This crucial useEffect hook runs when the app loads or when the token changes.
-    // Its job is to verify the token and fetch the user's data to establish a session.
+    useEffect(() => {
+        // This allows the app to react to the browser's back/forward buttons
+        const onLocationChange = () => setRoute(window.location.pathname);
+        window.addEventListener('popstate', onLocationChange);
+        return () => window.removeEventListener('popstate', onLocationChange);
+    }, []);
+
     useEffect(() => {
         const fetchUserData = async () => {
             if (token) {
-                // If a token exists, persist it and set it as a default header for all API requests.
                 localStorage.setItem('token', token);
                 axios.defaults.headers.common['x-auth-token'] = token;
                 try {
-                    // Attempt to fetch the user's data from the protected backend route.
                     const res = await axios.get(`${AUTH_API_URL}/user`);
                     setUser(res.data);
-                } catch (err) {
-                    // If the token is invalid or expired, clear it and log the user out.
-                    setToken(null);
-                }
+                } catch (err) { setToken(null); }
             } else {
-                // If no token exists, ensure the session is fully cleared.
                 localStorage.removeItem('token');
                 delete axios.defaults.headers.common['x-auth-token'];
                 setUser(null);
             }
-            setLoading(false); // Stop the loading indicator
+            setLoading(false);
         };
         fetchUserData();
     }, [token]);
 
-    // --- Handler Functions ---
-    // These functions are passed down as props to child components to allow them to update the app's central state.
-
-    const handleAuthSuccess = (newToken) => setToken(newToken);
+    const handleAuthSuccess = (newToken) => {
+        setCurrentPage('dashboard');
+        setToken(newToken);
+    };
     const handleProfileSave = (updatedUser) => setUser(updatedUser);
-    const handleLogout = () => setToken(null);
+    const handleLogout = () => {
+        setCurrentPage('dashboard');
+        setToken(null);
+    };
     const handleUserUpdate = (updatedUser) => setUser(updatedUser);
     
-    // This function returns the component for the current active page inside the AppLayout.
-    const renderPage = () => {
+    const renderLoggedInPages = () => {
         switch (currentPage) {
-            case 'logHistory':
-                return <LogHistoryPage />;
-            case 'weeklyProgress':
-                return <WeeklyProgressPage onUpdateUser={handleUserUpdate} onNavigate={setCurrentPage} />;
-            case 'settings':
-                return <SettingsPage onLogout={handleLogout} />;
+            case 'logHistory': return <LogHistoryPage />;
+            case 'weeklyProgress': return <WeeklyProgressPage onUpdateUser={handleUserUpdate} onNavigate={setCurrentPage} />;
+            case 'settings': return <SettingsPage onLogout={handleLogout} />;
             case 'dashboard':
-            default:
-                return <DashboardPage user={user} onUpdateUser={handleUserUpdate} />;
+            default: return <DashboardPage user={user} onUpdateUser={handleUserUpdate} />;
         }
     };
 
-    // --- Main Render Logic ---
-    // This is the high-level routing that decides which major view to show.
-
     if (loading) {
-        return <div className="flex items-center justify-center min-h-screen text-gray-500">Loading Application...</div>;
+        return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
     }
 
-    // SCENE 1: If there is no user object, the user is logged out. Show the AuthPage.
+// --- UPDATED HIGH-LEVEL ROUTING LOGIC ---
+
+    // STEP 1: Always check for the password reset route first. This takes priority over everything else.
+    if (route.startsWith('/resetpassword/')) {
+        const resetToken = route.split('/')[2];
+        return <ResetPasswordPage token={resetToken} onPasswordReset={() => {
+            // After reset, clear the user's session to force a fresh login
+            handleLogout(); 
+            // Change URL back to the root without reloading
+            window.history.pushState({}, '', '/'); 
+            setRoute('/');
+        }}/>;
+    }
+
+    // STEP 2: If it's not a password reset, THEN check if the user is logged in.
     if (!user) {
-        return <AuthPage onAuthSuccess={handleAuthSuccess} />;
+        if (currentPage === 'forgotPassword') {
+            return <ForgotPasswordPage onBackToLogin={() => setCurrentPage('dashboard')} />;
+        }
+        return <AuthPage onAuthSuccess={handleAuthSuccess} onNavigate={setCurrentPage} />;
     }
 
-    // SCENE 2: If the user is logged in but hasn't set their initial weight, show the ProfilePage.
+    // STEP 3: Handle the logged-in user's journey.
     if (!user.weight) {
         return <ProfilePage onProfileSave={handleProfileSave} />;
     }
 
-    // SCENE 3: If the user is fully authenticated and has a profile, show the main application layout.
-    // The AppLayout component acts as the "shell" with the sidebar and header.
-    // We pass the currently selected page component as its `children`.
+    // STEP 4: If all checks pass, show the main application.
     return (
         <AppLayout 
             user={user} 
@@ -101,7 +110,7 @@ function App() {
             onNavigate={setCurrentPage}
             onLogout={handleLogout}
         >
-            {renderPage()}
+            {renderLoggedInPages()}
         </AppLayout>
     );
 }
