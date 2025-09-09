@@ -31,7 +31,7 @@ const ProgressStat = ({ label, value, goal, unit }) => {
 };
 
 // The main component for the Weekly Progress page.
-export default function WeeklyProgressPage({ onBack, onUpdateUser }) {
+export default function WeeklyProgressPage({ onNavigate, onUpdateUser }) {
     const [summary, setSummary] = useState([]);
     const [loading, setLoading] = useState(true);
     const [message, setMessage] = useState('');
@@ -79,7 +79,7 @@ export default function WeeklyProgressPage({ onBack, onUpdateUser }) {
                             <p className="text-sm text-gray-500">Review your performance and update your goals.</p>
                         </div>
                     </div>
-                    <button onClick={onBack} className="flex items-center self-stretch justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border rounded-md sm:self-auto hover:bg-gray-100 transition-colors">
+                    <button onClick={() => onNavigate('dashboard')} className="flex items-center self-stretch justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border rounded-md sm:self-auto hover:bg-gray-100 transition-colors">
                         <ArrowLeft size={16} />
                         Back to Dashboard
                     </button>
