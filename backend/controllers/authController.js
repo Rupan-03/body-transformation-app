@@ -8,7 +8,7 @@ const crypto = require('crypto');
 
 // --- User Registration Function ---
 exports.registerUser = async (req, res) => {
-    const { name, email, password, primaryGoal } = req.body;
+    const { name, email, password } = req.body;
 
     try {
         // 1. Check if a user with this email already exists
@@ -21,8 +21,7 @@ exports.registerUser = async (req, res) => {
         user = new User({
             name,
             email,
-            password,
-            primaryGoal
+            password
         });
 
         // 3. Hash the password before saving it to the database

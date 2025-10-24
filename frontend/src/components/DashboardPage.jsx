@@ -26,27 +26,48 @@ function StatCard({ title, value, icon, color = 'blue' }) {
     );
 }
 
+const GoalRadio = ({ value, label, checked, onChange }) => (
+    <label className={`flex items-center p-3 text-sm border rounded-md cursor-pointer transition-colors ${checked ? 'bg-blue-50 border-blue-400 ring-1 ring-blue-300' : 'hover:bg-gray-50'}`}>
+        <input type="radio" name="primaryGoal" value={value} checked={checked} onChange={onChange} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+        <span className="ml-3 font-medium text-gray-700">{label}</span>
+    </label>
+);
+
 // The main DashboardPage component.
 export default function DashboardPage({ user, onUpdateUser }) {
-    // Dynamically calculate the user's daily calorie target based on their primary goal.
-    const calorieTarget = user.primaryGoal === 'muscle_gain' 
-        ? (user.maintenanceCalories || 0) + 500 
-        : (user.maintenanceCalories || 0) - 500;
+    // --- UPDATED: Calculate dynamic calorie target based on the four goals ---
+    const getCalorieTarget = () => {
+        const tdee = user.tdee || 0; // Use the new 'tdee' field name
+        switch (user.primaryGoal) {
+            case 'light_loss': return tdee - 250;
+            case 'moderate_loss': return tdee - 500;
+            case 'light_gain': return tdee + 250;
+            case 'moderate_gain': return tdee + 500;
+            default: return tdee; // Should ideally not happen if goal is set
+        }
+    };
+    const calorieTarget = getCalorieTarget();
+    
+    // --- UPDATED: Map goal keys to user-friendly labels ---
+    const goalLabels = {
+        light_loss: 'Light Loss Target (-250 kcal)',
+        moderate_loss: 'Moderate Loss Target (-500 kcal)',
+        light_gain: 'Light Gain Target (+250 kcal)',
+        moderate_gain: 'Moderate Gain Target (+500 kcal)',
+    };
+    const currentGoalLabel = goalLabels[user.primaryGoal] || 'Calorie Target';
 
-    // State management for the "Edit Goal" modal.
     const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
     const [newGoal, setNewGoal] = useState(user.primaryGoal);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Handles saving the user's new primary goal.
     const handleGoalSave = async () => {
         setIsSaving(true);
         try {
             const res = await axios.put(PROFILE_API_URL, { primaryGoal: newGoal });
-            onUpdateUser(res.data); // Update the main user state in App.jsx
-            setIsGoalModalOpen(false); // Close the modal on success
+            onUpdateUser(res.data);
+            setIsGoalModalOpen(false);
         } catch (err) {
-            // A simple alert for errors; could be replaced with a toast notification.
             alert("Could not save new goal. Please try again.");
         } finally {
             setIsSaving(false);
@@ -55,62 +76,47 @@ export default function DashboardPage({ user, onUpdateUser }) {
 
     return (
         <>
-             <div className="space-y-8 animate-in fade-in">
-                {/* --- REDESIGNED HEADER SECTION --- */}
+            <div className="space-y-8 animate-in fade-in">
                 <section>
                     <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
                             <p className="mt-1 text-gray-500">Here's your "at-a-glance" progress for today.</p>
                         </div>
-                        <button 
-                            onClick={() => setIsGoalModalOpen(true)} 
-                            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
-                        >
+                        <button onClick={() => setIsGoalModalOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-sm hover:bg-blue-700 transition-colors">
                             <Edit size={16} /> Edit Primary Goal
                         </button>
                     </div>
                 </section>
                 
-                {/* --- REDESIGNED STATS & GOALS GRID --- */}
                 <section>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                         <StatCard title="Current Weight" value={`${user.weight} kg`} icon={<TrendingUp size={24} />} color="blue" />
-                        <StatCard title="Maintenance" value={`${user.maintenanceCalories} kcal`} icon={<Flame size={24} />} color="orange" />
-                        <StatCard 
-                            title={user.primaryGoal === 'muscle_gain' ? 'Muscle Gain Target' : 'Fat Loss Target'} 
-                            value={`${calorieTarget} kcal`}
-                            icon={<Target size={24} />}
-                            color="green"
-                        />
-                        <StatCard title="Protein Goal" value={`${user.proteinGoal} g`} icon={<Beef size={24} />} color="red" />
+                        {/* --- UPDATED: Use 'tdee' instead of 'maintenanceCalories' --- */}
+                        <StatCard title="TDEE (Maintenance)" value={`${user.tdee || 'N/A'} kcal`} icon={<Flame size={24} />} color="orange" />
+                        <StatCard title={currentGoalLabel} value={`${calorieTarget} kcal`} icon={<Target size={24} />} color="green" />
+                        <StatCard title="Protein Goal" value={`${user.proteinGoal || 'N/A'} g`} icon={<Beef size={24} />} color="red" />
                     </div>
                 </section>
                 
-                {/* Placeholder for future components */}
                 <section>
                     <div className="p-8 text-center bg-white border rounded-lg">
-                        <h3 className="text-lg font-medium text-gray-700">Future Components</h3>
-                        <p className="mt-2 text-sm text-gray-500">Charts and visualizations will go here.</p>
+                        <h3 className="text-lg font-medium text-gray-700">Daily Log & History</h3>
+                        <p className="mt-2 text-sm text-gray-500">Navigate to the "Log History" page via the sidebar to add today's entry or review past progress.</p>
                     </div>
                 </section>
             </div>
 
-
-            {/* --- Edit Goal Modal --- */}
+            {/* --- UPDATED: Edit Goal Modal with new options --- */}
             {isGoalModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 animate-in fade-in">
-                    <div className="w-full max-w-md p-6 mx-4 bg-white rounded-lg shadow-xl animate-in fade-in slide-up">
+                    <div className="w-full max-w-lg p-6 mx-4 bg-white rounded-lg shadow-xl animate-in fade-in slide-up">
                         <h2 className="text-xl font-bold text-gray-900">Change Your Primary Goal</h2>
-                        <div className="flex gap-4 mt-4">
-                            <label className="flex items-center p-3 border rounded-md cursor-pointer flex-1 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
-                                <input type="radio" name="primaryGoal" value="fat_loss" checked={newGoal === 'fat_loss'} onChange={(e) => setNewGoal(e.target.value)} className="w-4 h-4 text-blue-600" />
-                                <span className="ml-3 text-sm font-medium text-gray-700">Fat Loss</span>
-                            </label>
-                            <label className="flex items-center p-3 border rounded-md cursor-pointer flex-1 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
-                                <input type="radio" name="primaryGoal" value="muscle_gain" checked={newGoal === 'muscle_gain'} onChange={(e) => setNewGoal(e.target.value)} className="w-4 h-4 text-blue-600" />
-                                <span className="ml-3 text-sm font-medium text-gray-700">Muscle Gain</span>
-                            </label>
+                        <div className="grid grid-cols-1 gap-2 mt-4 sm:grid-cols-2">
+                            <GoalRadio value="moderate_loss" label="Moderate Loss (-500)" checked={newGoal === 'moderate_loss'} onChange={(e) => setNewGoal(e.target.value)} />
+                            <GoalRadio value="light_loss" label="Light Loss (-250)" checked={newGoal === 'light_loss'} onChange={(e) => setNewGoal(e.target.value)} />
+                            <GoalRadio value="moderate_gain" label="Moderate Gain (+500)" checked={newGoal === 'moderate_gain'} onChange={(e) => setNewGoal(e.target.value)} />
+                            <GoalRadio value="light_gain" label="Light Gain (+250)" checked={newGoal === 'light_gain'} onChange={(e) => setNewGoal(e.target.value)} />
                         </div>
                         <div className="flex justify-end gap-4 mt-6">
                             <button onClick={() => setIsGoalModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">Cancel</button>

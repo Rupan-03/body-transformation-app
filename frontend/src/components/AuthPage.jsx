@@ -7,7 +7,7 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function AuthPage({ onAuthSuccess, onNavigate }) {
     const [isRegister, setIsRegister] = useState(true);
-    const [formData, setFormData] = useState({ name: '', email: '', password: '', primaryGoal: 'fat_loss' });
+    const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const [error, setError] = useState('');
     const [errors, setErrors] = useState({});
     const [showPassword, setShowPassword] = useState(false); // New state for password visibility
@@ -48,9 +48,10 @@ export default function AuthPage({ onAuthSuccess, onNavigate }) {
             return;
         }
 
+        const payload = isRegister ? { name: formData.name, email: formData.email, password: formData.password } : { email: formData.email, password: formData.password };
         const url = isRegister ? `${API_BASE_URL}/auth/register` : `${API_BASE_URL}/auth/login`;
         try {
-            const res = await axios.post(url, formData);
+            const res = await axios.post(url, payload);
             onAuthSuccess(res.data.token);
         } catch (err) {
             setError(err.response?.data?.msg || 'An error occurred. Please try again.');
@@ -77,19 +78,6 @@ export default function AuthPage({ onAuthSuccess, onNavigate }) {
                                 <label className="text-sm font-medium text-gray-700">Name</label>
                                 <input name="name" type="text" value={formData.name} onChange={handleChange} className={`w-full px-3 py-2 mt-1 border rounded-md shadow-sm transition-shadow ${errors.name ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'}`} />
                                 {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
-                            </div>
-                             <div>
-                                <label className="text-sm font-medium text-gray-700">What is your primary goal?</label>
-                                <div className="flex gap-4 mt-2">
-                                    <label className="flex items-center p-3 border rounded-md cursor-pointer flex-1 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
-                                        <input type="radio" name="primaryGoal" value="fat_loss" checked={formData.primaryGoal === 'fat_loss'} onChange={handleChange} className="w-4 h-4 text-blue-600 border-gray-300" />
-                                        <span className="ml-3 text-sm font-medium text-gray-700">Fat Loss</span>
-                                    </label>
-                                    <label className="flex items-center p-3 border rounded-md cursor-pointer flex-1 has-[:checked]:bg-blue-50 has-[:checked]:border-blue-400">
-                                        <input type="radio" name="primaryGoal" value="muscle_gain" checked={formData.primaryGoal === 'muscle_gain'} onChange={handleChange} className="w-4 h-4 text-blue-600 border-gray-300" />
-                                        <span className="ml-3 text-sm font-medium text-gray-700">Muscle Gain</span>
-                                    </label>
-                                </div>
                             </div>
                         </>
                     )}

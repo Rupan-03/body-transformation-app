@@ -12,29 +12,30 @@ const UserSchema = new mongoose.Schema({
         validate: [validator.isEmail, 'Please provide a valid email address.']
     },
     password: { type: String, required: true },
+
+    // --- UPDATED GOAL FIELD ---
+    primaryGoal: {
+        type: String,
+        enum: ['light_loss', 'moderate_loss', 'light_gain', 'moderate_gain'],
+        // required: true, // REMOVED THIS LINE
+    },
+    // --- END UPDATE ---
+
     age: { type: Number },
     gender: { type: String, enum: ['male', 'female'] },
-    height: { type: Number }, // in cm
-    weight: { type: Number }, // in kg
+    height: { type: Number },
+    weight: { type: Number },
     activityLevel: {
         type: String,
         enum: ['sedentary', 'light', 'moderate', 'active', 'very_active'],
     },
-    primaryGoal: {
-        type: String,
-        enum: ['fat_loss', 'muscle_gain'],
-        required: true,
-    },
     targetWeight: { type: Number },
-    maintenanceCalories: { type: Number },
+    tdee: { type: Number },
     proteinGoal: { type: Number },
     lastWeeklyUpdate: { type: Date },
+    resetPasswordToken: String, // Keep if using password reset
+    resetPasswordExpire: Date, // Keep if using password reset
     date: { type: Date, default: Date.now },
-
-    // --- NEW PASSWORD RESET FIELDS ---
-    // These fields will be added to the user's document when they request a reset.
-    resetPasswordToken: String,
-    resetPasswordExpire: Date,
 });
 
 // --- NEW METHOD to generate and hash the password reset token ---

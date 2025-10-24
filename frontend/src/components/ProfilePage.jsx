@@ -3,9 +3,18 @@ import axios from 'axios';
 
 const PROFILE_API_URL = `${import.meta.env.VITE_API_URL}/profile`;
 
+// --- ADD GoalRadio helper component here ---
+const GoalRadio = ({ value, label, checked, onChange }) => (
+    <label className={`flex items-center p-3 text-sm border rounded-md cursor-pointer transition-colors ${checked ? 'bg-blue-50 border-blue-400 ring-1 ring-blue-300' : 'hover:bg-gray-50'}`}>
+        <input type="radio" name="primaryGoal" value={value} checked={checked} onChange={onChange} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+        <span className="ml-3 font-medium text-gray-700">{label}</span>
+    </label>
+);
+// --- END ADDITION ---
+
 export default function ProfilePage({ onProfileSave }) {
     const [formData, setFormData] = useState({
-        age: '', gender: 'male', height: '', weight: '', activityLevel: 'sedentary'
+        age: '', gender: 'male', height: '', weight: '', activityLevel: 'sedentary', primaryGoal: 'moderate_loss'
     });
     const [error, setError] = useState('');
 
@@ -62,6 +71,17 @@ export default function ProfilePage({ onProfileSave }) {
                             <option value="very_active">Extra Active (physical job)</option>
                         </select>
                     </div>
+                    {/* --- NEW GOAL SELECTION SECTION --- */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Finally, what is your primary goal?</label>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <GoalRadio value="moderate_loss" label="Moderate Loss (-500 kcal)" checked={formData.primaryGoal === 'moderate_loss'} onChange={handleChange} />
+                            <GoalRadio value="light_loss" label="Light Loss (-250 kcal)" checked={formData.primaryGoal === 'light_loss'} onChange={handleChange} />
+                            <GoalRadio value="moderate_gain" label="Moderate Gain (+500 kcal)" checked={formData.primaryGoal === 'moderate_gain'} onChange={handleChange} />
+                            <GoalRadio value="light_gain" label="Light Gain (+250 kcal)" checked={formData.primaryGoal === 'light_gain'} onChange={handleChange} />
+                        </div>
+                    </div>
+                    {/* --- END NEW SECTION --- */}
                     <button type="submit" className="w-full py-2 font-semibold text-white bg-green-600 rounded-md hover:bg-green-700">Save Profile & Continue</button>
                 </form>
             </div>

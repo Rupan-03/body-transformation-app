@@ -65,7 +65,10 @@ function App() {
         switch (currentPage) {
             case 'logHistory': return <LogHistoryPage />;
             case 'weeklyProgress': return <WeeklyProgressPage onUpdateUser={handleUserUpdate} onNavigate={setCurrentPage} />;
-            case 'settings': return <SettingsPage onLogout={handleLogout} />;
+            // --- THIS IS THE FIX ---
+            // Pass the user object and the update handler to the SettingsPage
+            case 'settings': return <SettingsPage user={user} onLogout={handleLogout} onUpdateUser={handleUserUpdate} />;
+            // --- END FIX ---
             case 'dashboard':
             default: return <DashboardPage user={user} onUpdateUser={handleUserUpdate} />;
         }

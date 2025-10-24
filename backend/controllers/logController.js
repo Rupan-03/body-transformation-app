@@ -46,6 +46,51 @@ exports.getUserLogs = async (req, res) => {
     }
 };
 
+// --- NEW FUNCTION: Update a Specific Log Entry ---
+// @desc    Update a specific log entry by its ID
+// @route   PUT /api/logs/:id
+// @access  Private
+exports.updateLog = async (req, res) => {
+    const { weight, calorieIntake, proteinIntake } = req.body;
+    const logId = req.params.id;
+
+    // Basic validation for inputs
+    if (weight === undefined || calorieIntake === undefined || proteinIntake === undefined) {
+        return res.status(400).json({ msg: 'Please provide weight, calorie intake, and protein intake.' });
+    }
+
+    try {
+        // Find the log entry by its ID
+        let log = await DailyLog.findById(logId);
+
+        if (!log) {
+            return res.status(404).json({ msg: 'Log entry not found' });
+        }
+
+        // IMPORTANT SECURITY CHECK: Ensure the log belongs to the logged-in user
+        if (log.user.toString() !== req.user.id) {
+            return res.status(401).json({ msg: 'User not authorized to update this log' });
+        }
+
+        // Update the log fields
+        log.weight = weight;
+        log.calorieIntake = calorieIntake;
+        log.proteinIntake = proteinIntake;
+
+        // Save the updated log entry
+        await log.save();
+
+        res.json(log); // Return the updated log entry
+    } catch (err) {
+        console.error("Error updating log:", err.message);
+        // Handle potential CastError if the ID format is invalid
+        if (err.kind === 'ObjectId') {
+             return res.status(404).json({ msg: 'Log entry not found' });
+        }
+        res.status(500).send('Server Error');
+    }
+};
+
 // @desc    Delete a specific log entry by its ID
 // @route   DELETE /api/logs/:id
 // @access  Private
