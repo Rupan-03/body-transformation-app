@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createOrUpdateLog, getUserLogs, deleteLog, updateLog } = require('../../controllers/logController');
+const { createOrUpdateLog, getUserLogs, deleteLog, updateLog, getExerciseLists } = require('../../controllers/logController');
 const authMiddleware = require('../../middleware/authMiddleware');
 
 // Route to get all logs for a user
@@ -15,5 +15,9 @@ router.delete('/:id', authMiddleware, deleteLog);
 
 // Handles requests to modify an existing log entry
 router.put('/:id', authMiddleware, updateLog);
+
+// --- NEW ROUTE ---
+// Provides the list of exercise names for the autocomplete feature
+router.get('/exerciselist', authMiddleware, getExerciseLists);
 
 module.exports = router;

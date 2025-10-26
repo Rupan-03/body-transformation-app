@@ -4,9 +4,12 @@ const DailyLog = require('../models/DailyLog');
 // @route   POST /api/logs
 // @access  Private
 exports.createOrUpdateLog = async (req, res) => {
-    const { weight, calorieIntake, proteinIntake } = req.body;
+    // Destructure ALL possible fields, including the new workout ones
+    const {
+        weight, calorieIntake, proteinIntake,
+         workoutSplit, strengthExercises, cardioExercises
+    } = req.body;
 
-    // Get today's date at midnight (to ensure we always find the same day)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -18,72 +21,132 @@ exports.createOrUpdateLog = async (req, res) => {
         proteinIntake,
     };
 
+    // --- SIMPLIFIED WORKOUT DATA HANDLING ---
+    // Add workout data ONLY if it's provided and valid
+    if (workoutSplit && strengthExercises && strengthExercises.length > 0) {
+        // Optional: Add validation here to ensure sets/reps/weight have values
+        logData.workoutSplit = workoutSplit;
+        logData.strengthExercises = strengthExercises;
+    } else {
+        // Explicitly set to undefined if not provided or empty to clear old data
+        logData.workoutSplit = undefined;
+        logData.strengthExercises = undefined;
+    }
+
+    if (cardioExercises && cardioExercises.length > 0) {
+        // Optional: Add validation here to ensure type/duration have values
+        logData.cardioExercises = cardioExercises;
+    } else {
+        // Explicitly set to undefined if not provided or empty
+        logData.cardioExercises = undefined;
+    }
+    // --- END SIMPLIFIED HANDLING ---
+
     try {
-        // Find a log for this user for today and update it.
-        // If one doesn't exist, create it (upsert: true).
         const log = await DailyLog.findOneAndUpdate(
             { user: req.user.id, date: today },
             { $set: logData },
-            { new: true, upsert: true, setDefaultsOnInsert: true }
+            // Add runValidators to ensure conditional requirements are checked
+            { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
         );
         res.status(201).json(log);
     } catch (err) {
-        console.error(err.message);
+        // Handle Mongoose validation errors
+        if (err.name === 'ValidationError') {
+            const messages = Object.values(err.errors).map(val => val.message);
+            return res.status(400).json({ msg: messages.join('. ') });
+        }
+        console.error("Error creating/updating log:", err.message);
         res.status(500).send('Server Error');
     }
 };
 
-// @desc    Get all logs for the logged-in user
-// @route   GET /api/logs
-// @access  Private
-exports.getUserLogs = async (req, res) => {
-    try {
-        const logs = await DailyLog.find({ user: req.user.id }).sort({ date: -1 }); // Sort by most recent
-        res.json(logs);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
-
-// --- NEW FUNCTION: Update a Specific Log Entry ---
 // @desc    Update a specific log entry by its ID
 // @route   PUT /api/logs/:id
 // @access  Private
 exports.updateLog = async (req, res) => {
-    const { weight, calorieIntake, proteinIntake } = req.body;
+    // Destructure all possible fields
+    const {
+        weight, calorieIntake, proteinIntake,
+         workoutSplit, strengthExercises, cardioExercises
+    } = req.body;
     const logId = req.params.id;
 
-    // Basic validation for inputs
-    if (weight === undefined || calorieIntake === undefined || proteinIntake === undefined) {
-        return res.status(400).json({ msg: 'Please provide weight, calorie intake, and protein intake.' });
+    // Basic validation
+    if (weight === undefined || calorieIntake === undefined || proteinIntake === undefined ) {
+        return res.status(400).json({ msg: 'Please provide weight, calorie and protein' });
     }
 
     try {
-        // Find the log entry by its ID
         let log = await DailyLog.findById(logId);
+        if (!log) return res.status(404).json({ msg: 'Log entry not found' });
+        if (log.user.toString() !== req.user.id) return res.status(401).json({ msg: 'User not authorized' });
 
-        if (!log) {
-            return res.status(404).json({ msg: 'Log entry not found' });
-        }
-
-        // IMPORTANT SECURITY CHECK: Ensure the log belongs to the logged-in user
-        if (log.user.toString() !== req.user.id) {
-            return res.status(401).json({ msg: 'User not authorized to update this log' });
-        }
-
-        // Update the log fields
+        // Update basic fields
         log.weight = weight;
         log.calorieIntake = calorieIntake;
         log.proteinIntake = proteinIntake;
 
-        // Save the updated log entry
-        await log.save();
+        // --- SIMPLIFIED WORKOUT DATA UPDATE ---
+        // Update strength data if provided, otherwise clear it
+        if (workoutSplit && strengthExercises && strengthExercises.length > 0) {
+            log.workoutSplit = workoutSplit;
+            log.strengthExercises = strengthExercises;
+        } else {
+            log.workoutSplit = undefined;
+            log.strengthExercises = undefined; // Or markModified if just clearing array
+        }
 
-        res.json(log); // Return the updated log entry
+        // Update cardio data if provided, otherwise clear it
+        if (cardioExercises && cardioExercises.length > 0) {
+            log.cardioExercises = cardioExercises;
+        } else {
+            log.cardioExercises = undefined; // Or markModified if just clearing array
+        }
+        // --- END SIMPLIFIED UPDATE ---
+
+        // Use save() to trigger Mongoose validation for subdocuments and conditional requirements
+        const updatedLog = await log.save();
+        res.json(updatedLog);
+
     } catch (err) {
+        // Handle validation errors during save
+        if (err.name === 'ValidationError') {
+            const messages = Object.values(err.errors).map(val => val.message);
+            return res.status(400).json({ msg: messages.join('. ') });
+        }
         console.error("Error updating log:", err.message);
-        // Handle potential CastError if the ID format is invalid
+        if (err.kind === 'ObjectId') { // Handle invalid ID format
+            return res.status(404).json({ msg: 'Log entry not found' });
+        }
+        res.status(500).send('Server Error');
+    }
+};
+
+// getUserLogs and deleteLog remain unchanged
+exports.getUserLogs = async (req, res) => {
+    try {
+        const logs = await DailyLog.find({ user: req.user.id }).sort({ date: -1 });
+        res.json(logs);
+    } catch (err) {
+        console.error("Error fetching user logs:", err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+exports.deleteLog = async (req, res) => {
+    try {
+        const log = await DailyLog.findById(req.params.id);
+        if (!log) {
+            return res.status(404).json({ msg: 'Log entry not found' });
+        }
+        if (log.user.toString() !== req.user.id) {
+            return res.status(401).json({ msg: 'User not authorized' });
+        }
+        await DailyLog.findByIdAndDelete(req.params.id);
+        res.json({ msg: 'Log entry removed' });
+    } catch (err) {
+        console.error("Error deleting log:", err.message);
         if (err.kind === 'ObjectId') {
              return res.status(404).json({ msg: 'Log entry not found' });
         }
@@ -91,28 +154,33 @@ exports.updateLog = async (req, res) => {
     }
 };
 
-// @desc    Delete a specific log entry by its ID
-// @route   DELETE /api/logs/:id
+// --- NEW FUNCTION: Get Unique Exercise Lists ---
+// @desc    Get all unique strength and cardio exercise names for the user
+// @route   GET /api/logs/exerciselist
 // @access  Private
-exports.deleteLog = async (req, res) => {
+exports.getExerciseLists = async (req, res) => {
     try {
-        // Find the log by the ID provided in the URL
-        const log = await DailyLog.findById(req.params.id);
+        const userId = req.user.id;
 
-        if (!log) {
-            return res.status(404).json({ msg: 'Log entry not found' });
-        }
+        // Use MongoDB's distinct() to find all unique strength exercise names
+        const strengthNames = await DailyLog.distinct("strengthExercises.name", { 
+            user: userId, 
+            "strengthExercises.name": { $ne: null, $ne: "" } // Ensure we only get valid names
+        });
 
-        // IMPORTANT SECURITY CHECK: Make sure the log belongs to the user trying to delete it
-        if (log.user.toString() !== req.user.id) {
-            return res.status(401).json({ msg: 'User not authorized' });
-        }
+        // Use distinct() to find all unique cardio exercise types
+        const cardioNames = await DailyLog.distinct("cardioExercises.type", { 
+            user: userId, 
+            "cardioExercises.type": { $ne: null, $ne: "" } // Ensure we only get valid types
+        });
 
-        await DailyLog.findByIdAndDelete(req.params.id);
+        res.json({
+            strengthNames: strengthNames.sort(), // Return sorted lists
+            cardioNames: cardioNames.sort()
+        });
 
-        res.json({ msg: 'Log entry removed' });
     } catch (err) {
-        console.error(err.message);
+        console.error("Error fetching exercise lists:", err.message);
         res.status(500).send('Server Error');
     }
 };
