@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { PlusCircle, Calendar, ChevronDown, Trash2, Edit, Dumbbell, Zap, Coffee, Utensils } from 'lucide-react';
-import AutocompleteInput from './AutocompleteInput'; // Import the autocomplete component
+import { PlusCircle, Calendar, ChevronDown, Trash2, Edit, Dumbbell, Zap, Coffee, Utensils, AlertCircle } from 'lucide-react';
+import AutocompleteInput from './AutocompleteInput'; // We assume this component exists in the same folder
 
 const LOGS_API_URL = `${import.meta.env.VITE_API_URL}/logs`;
 
@@ -45,11 +45,11 @@ const initialFormData = {
 };
 
 // --- Main Component ---
-// We accept the suggestion lists as props from LogHistoryPage
 export default function DailyLog({ strengthNameSuggestions = [], cardioNameSuggestions = [] }) {
     const [logs, setLogs] = useState([]);
     const [formData, setFormData] = useState(initialFormData);
     const [error, setError] = useState('');
+    const [formErrors, setFormErrors] = useState({}); // For inline validation
     const [loading, setLoading] = useState(true);
     const [activeWeekKey, setActiveWeekKey] = useState(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -79,7 +79,13 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
     }, []);
 
     // --- Add Form Handlers ---
-    const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+        if (formErrors[name]) {
+            setFormErrors(prev => ({ ...prev, [name]: '' }));
+        }
+    };
     
     const handleStrengthChange = (exIndex, field, value) => {
         const updated = [...formData.strengthExercises];
@@ -111,10 +117,24 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
     const addCardio = () => setFormData(prev => ({ ...prev, cardioExercises: [...prev.cardioExercises, { type: '', duration: '' }] }));
     const removeCardio = (index) => setFormData(prev => ({ ...prev, cardioExercises: prev.cardioExercises.filter((_, i) => i !== index) }));
 
-    // --- Submit Add Form ---
+    // --- Submit Add Form (with custom validation) ---
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setFormErrors({});
+
+        // Custom Validation
+        const newErrors = {};
+        if (!formData.weight) newErrors.weight = 'Weight is required.';
+        if (!formData.calorieIntake) newErrors.calorieIntake = 'Calories are required.';
+        if (!formData.proteinIntake) newErrors.proteinIntake = 'Protein is required.';
+
+        if (Object.keys(newErrors).length > 0) {
+            setFormErrors(newErrors);
+            setError('Please fill out all required nutrition fields.');
+            return;
+        }
+
         try {
             const filteredStrength = formData.strengthExercises
                 .map(ex => ({ ...ex, sets: ex.sets.filter(s => s.reps && s.weight) }))
@@ -134,8 +154,9 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
             const res = await axios.get(LOGS_API_URL);
             setLogs(res.data);
             setFormData(initialFormData);
+            setFormErrors({});
         } catch (err) {
-            setError(err.response?.data?.msg || 'Could not save log entry. Ensure all required fields are filled.');
+            setError(err.response?.data?.msg || 'Could not save log entry.');
         }
     };
 
@@ -144,7 +165,7 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
         setActiveWeekKey(prevKey => (prevKey === weekKey ? null : weekKey));
     };
 
-    // --- Delete Log Handlers ---
+    // --- Delete Log Handlers (with custom modal) ---
     const handleDeleteLogClick = (logId) => {
         setLogToDelete(logId);
         setIsDeleteModalOpen(true);
@@ -234,6 +255,14 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
         if (!logToEdit) return;
         setIsSavingEdit(true);
         setEditError('');
+
+        // Custom Validation for Edit
+        if (!editFormData.weight || !editFormData.calorieIntake || !editFormData.proteinIntake) {
+            setEditError('Please fill out all required nutrition fields.');
+            setIsSavingEdit(false);
+            return;
+        }
+
         try {
             const filteredStrength = editFormData.strengthExercises.map(ex => ({ ...ex, sets: ex.sets.filter(s => s.reps && s.weight) })).filter(ex => ex.name && ex.sets.length > 0);
             const filteredCardio = editFormData.cardioExercises.filter(c => c.type && c.duration);
@@ -264,26 +293,42 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
                 <h2 className="text-xl font-semibold text-gray-800">Log Today's Progress</h2>
 
                 {/* --- ADD LOG FORM --- */}
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6" noValidate>
                     {/* --- Nutrition Section --- */}
                     <section>
                         <h3 className="flex items-center gap-2 mb-3 text-lg font-medium text-gray-700">
                            <Utensils size={20} className="text-orange-500"/> Nutrition (Required)
                         </h3>
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                            <div><label className="block text-sm font-medium text-gray-700">Weight (kg)</label><input name="weight" type="number" step="0.1" value={formData.weight} onChange={handleChange} required className="w-full px-3 py-2 mt-1 border rounded-md"/></div>
-                            <div><label className="block text-sm font-medium text-gray-700">Calories (kcal)</label><input name="calorieIntake" type="number" value={formData.calorieIntake} onChange={handleChange} required className="w-full px-3 py-2 mt-1 border rounded-md"/></div>
-                            <div><label className="block text-sm font-medium text-gray-700">Protein (g)</label><input name="proteinIntake" type="number" value={formData.proteinIntake} onChange={handleChange} required className="w-full px-3 py-2 mt-1 border rounded-md"/></div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Weight (kg)</label>
+                                <input name="weight" type="number" step="0.1" value={formData.weight} onChange={handleChange} className={`w-full px-3 py-2 mt-1 border rounded-md ${formErrors.weight ? 'border-red-500' : 'border-gray-300'}`}/>
+                                {formErrors.weight && <p className="flex items-center gap-1 mt-1 text-sm text-red-600"><AlertCircle size={14} /> {formErrors.weight}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Calories (kcal)</label>
+                                <input name="calorieIntake" type="number" value={formData.calorieIntake} onChange={handleChange} className={`w-full px-3 py-2 mt-1 border rounded-md ${formErrors.calorieIntake ? 'border-red-500' : 'border-gray-300'}`}/>
+                                {formErrors.calorieIntake && <p className="flex items-center gap-1 mt-1 text-sm text-red-600"><AlertCircle size={14} /> {formErrors.calorieIntake}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Protein (g)</label>
+                                <input name="proteinIntake" type="number" value={formData.proteinIntake} onChange={handleChange} className={`w-full px-3 py-2 mt-1 border rounded-md ${formErrors.proteinIntake ? 'border-red-500' : 'border-gray-300'}`}/>
+                                {formErrors.proteinIntake && <p className="flex items-center gap-1 mt-1 text-sm text-red-600"><AlertCircle size={14} /> {formErrors.proteinIntake}</p>}
+                            </div>
                         </div>
                     </section>
                     <hr className="border-gray-200"/>
+                    
                     {/* --- Workout Section (Always Visible) --- */}
                     <section>
                          <h3 className="flex items-center gap-2 mb-3 text-lg font-medium text-gray-700">
                            <Dumbbell size={20} className="text-blue-500"/> Workout Details (Optional)
                         </h3>
                         <div className="p-4 space-y-4 border rounded-md bg-gray-50/70">
-                            <div><label className="block text-sm font-medium text-gray-700">Workout Split</label><input name="workoutSplit" type="text" placeholder="e.g., Push, Pull, Legs, Full Body" autoComplete="off" value={formData.workoutSplit} onChange={handleChange} className="w-full px-3 py-2 mt-1 border rounded-md"/></div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Workout Split</label>
+                                <input name="workoutSplit" type="text" placeholder="e.g., Push, Pull, Legs, Full Body" value={formData.workoutSplit} onChange={handleChange} className="w-full px-3 py-2 mt-1 border rounded-md" autoComplete="off"/>
+                            </div>
                             {formData.strengthExercises.length === 0 && (
                                  <button type="button" onClick={addExercise} className="flex items-center justify-center w-full gap-2 py-3 text-sm font-medium text-gray-500 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 hover:text-gray-700 transition-colors">
                                      <PlusCircle size={16} />
@@ -317,6 +362,7 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
                         </div>
                     </section>
                     <hr className="border-gray-200"/>
+                    
                     {/* --- Cardio Section (Always Visible) --- */}
                     <section>
                          <h3 className="flex items-center gap-2 mb-3 text-lg font-medium text-gray-700">
@@ -348,6 +394,7 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
                               )}
                          </div>
                     </section>
+                    
                     {/* Submit Button */}
                     <div className="pt-4 border-t">
                         <button type="submit" className="flex items-center justify-center w-full gap-2 px-4 py-2 font-semibold text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors">
@@ -474,15 +521,7 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
                              {/* Edit Workout Section */}
                              <section><h3 className="flex items-center gap-2 mb-3 text-lg font-medium text-gray-700"><Dumbbell size={20}/> Workout (Optional)</h3>
                                 <div className="p-4 space-y-4 border rounded-md bg-gray-50/70">
-                                    <div><label className="block text-sm font-medium text-gray-700">Workout Split</label><input 
-                                    name="workoutSplit" 
-                                    type="text" 
-                                    placeholder="e.g., Push, Pull, Legs, Full Body" 
-                                    value={formData.workoutSplit} 
-                                    onChange={handleChange} 
-                                    className="w-full px-3 py-2 mt-1 border rounded-md"
-                                    autoComplete="off" />
-                                </div>
+                                    <div><label className="block text-sm font-medium text-gray-700">Workout Split</label><input name="workoutSplit" type="text" placeholder="e.g., Push, Pull, Legs" value={editFormData.workoutSplit} onChange={handleEditChange} className="w-full px-3 py-2 mt-1 border rounded-md" autoComplete="off"/></div>
                                     {editFormData.strengthExercises.length === 0 && (<button type="button" onClick={addEditExercise} className="flex items-center justify-center w-full gap-2 py-3 text-sm font-medium text-gray-500 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 hover:text-gray-700 transition-colors"><PlusCircle size={16} /> Add First Exercise</button>)}
                                     {editFormData.strengthExercises.map((ex, exIndex) => (
                                         <div key={exIndex} className="p-3 space-y-2 border rounded bg-white shadow-sm">
@@ -549,12 +588,5 @@ export default function DailyLog({ strengthNameSuggestions = [], cardioNameSugge
     );
 }
 
-// This helper component is no longer used by the Add Form, 
-// but it is still used by the Edit Form, so it must be kept.
-const DayTypeRadio = ({ value, label, icon, checked, onChange }) => (
-    <label className={`flex items-center gap-2 p-2 px-3 text-sm border rounded-md cursor-pointer transition-colors ${checked ? 'bg-blue-50 border-blue-400 ring-1 ring-blue-300' : 'hover:bg-gray-50'}`}>
-        <input type="radio" name="dayType" value={value} checked={checked} onChange={onChange} className="w-4 h-4 text-blue-600 focus:ring-blue-500" />
-        {icon}
-        <span className="font-medium text-gray-700">{label}</span>
-    </label>
-);
+// This helper component is no longer used in this file as it was related to the old 'dayType' logic
+// const DayTypeRadio = ({ value, label, icon, checked, onChange }) => ( ... );
