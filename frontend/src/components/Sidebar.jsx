@@ -22,7 +22,8 @@ export default function Sidebar({ user, currentPage, onNavigate, isOpen, setIsOp
             <aside className={`fixed top-0 left-0 z-30 flex h-full w-64 flex-col bg-white border-r transform transition-transform md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b">
-                    <h1 className="text-xl font-bold text-blue-600">BodyTrack</h1>
+                    <img src="/logo_zenithFit.png" alt="ZenithFit Logo" className="w-8 h-8" />
+                    <h1 className="text-xl font-bold text-blue-600">ZenithFit</h1>
                     <button onClick={() => setIsOpen(false)} className="text-gray-500 md:hidden"><X size={24} /></button>
                 </div>
                 
