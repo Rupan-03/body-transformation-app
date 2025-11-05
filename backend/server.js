@@ -16,7 +16,7 @@ const app = express();
 // ✅ CORS Configuration for Render
 const allowedOrigins = [
   'http://localhost:5173', // local dev
-  'https://zenithfitapp.onrender.com/', // 🔁 your deployed frontend URL
+  'https://zenithfitapp.onrender.com', // 🔁 your deployed frontend URL
 ];
 
 app.use(cors({
