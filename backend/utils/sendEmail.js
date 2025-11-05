@@ -5,15 +5,24 @@ const { renderVerifyEmail, renderPasswordReset } = require('./emailTemplates');
 const sendEmail = async (options) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: process.env.EMAIL_SERVICE || 'gmail',
-      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-      port: process.env.EMAIL_PORT || 587,
+      host: 'smtp.gmail.com', // ✅ explicit for Render (do NOT use service)
+      port: 587,
       secure: false,
       auth: {
         user: process.env.EMAIL_USERNAME,
         pass: process.env.EMAIL_PASSWORD,
       },
     });
+    // const transporter = nodemailer.createTransport({
+    //   service: process.env.EMAIL_SERVICE || 'gmail',
+    //   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+    //   port: process.env.EMAIL_PORT || 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USERNAME,
+    //     pass: process.env.EMAIL_PASSWORD,
+    //   },
+    // });
 
     // --- Choose what HTML to send ---
     let htmlMessage;
