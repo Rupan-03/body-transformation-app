@@ -1,41 +1,21 @@
-const nodemailer = require('nodemailer');
-const { renderVerifyEmail, renderPasswordReset } = require('./emailTemplates');
+const Brevo = require('@getbrevo/brevo');
 
 const sendEmail = async (options) => {
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
-      port: process.env.EMAIL_PORT || 587,
-      secure: false,
-      auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD,
-      },
-    });
+    const apiInstance = new Brevo.TransactionalEmailsApi();
+    apiInstance.setApiKey(
+      Brevo.TransactionalEmailsApiApiKeys.apiKey,
+      process.env.BREVO_API_KEY
+    );
 
-    let htmlMessage;
+    const sendSmtpEmail = new Brevo.SendSmtpEmail();
+    sendSmtpEmail.sender = { email: process.env.EMAIL_FROM, name: 'BodyTrack App' };
+    sendSmtpEmail.to = [{ email: options.email }];
+    sendSmtpEmail.subject = options.subject || 'BodyTrack Notification';
+    sendSmtpEmail.htmlContent = options.html || options.message || '<p>Hello!</p>';
 
-    if (options.html) {
-      htmlMessage = options.html;
-    } else if (options.type === 'verify') {
-      htmlMessage = renderVerifyEmail(options.email, options.otp);
-    } else if (options.type === 'reset') {
-      htmlMessage = renderPasswordReset(options.email, options.otp);
-    } else if (options.message) {
-      htmlMessage = options.message;
-    } else {
-      htmlMessage = '<p>No content provided</p>';
-    }
-
-    const mailOptions = {
-      from: `BodyTrack App <${process.env.EMAIL_FROM || process.env.EMAIL_USERNAME}>`,
-      to: options.email,
-      subject: options.subject || 'BodyTrack Notification',
-      html: htmlMessage,
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent to: ${options.email}`);
+    const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log('✅ Email sent via Brevo API:', response.messageId);
   } catch (error) {
     console.error('❌ Email sending failed:', error.message);
     throw new Error('Email could not be sent');
