@@ -1,3 +1,4 @@
+// controllers/authController.js
 const User = require('../models/User');
 const DailyLog = require('../models/DailyLog');
 const bcrypt = require('bcryptjs');
@@ -5,191 +6,240 @@ const jwt = require('jsonwebtoken');
 const sendEmail = require('../utils/sendEmail');
 const crypto = require('crypto');
 
+// helper: create token, set cookie, respond with user (without password)
+const sendToken = (user, statusCode, res) => {
+  const payload = { id: user._id };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '5h',
+  });
+
+  const cookieOptions = {
+    httpOnly: true,
+    expires: new Date(
+      Date.now() +
+        (process.env.COOKIE_EXPIRE_MS
+          ? parseInt(process.env.COOKIE_EXPIRE_MS)
+          : 5 * 60 * 60 * 1000)
+    ),
+  };
+  if (process.env.NODE_ENV === 'production') cookieOptions.secure = true;
+
+  res.cookie('token', token, cookieOptions);
+
+  const userObj = user.toObject ? user.toObject() : user;
+  delete userObj.password;
+  return res.status(statusCode).json({ success: true, token, user: userObj });
+};
 
 // --- User Registration Function ---
 exports.registerUser = async (req, res) => {
-    const { name, email, password } = req.body;
+  const { name, email, password } = req.body;
 
-    try {
-        // 1. Check if a user with this email already exists
-        let user = await User.findOne({ email });
-        if (user) {
-            return res.status(400).json({ msg: 'User already exists' });
-        }
+  try {
+    let user = await User.findOne({ email });
+    if (user) return res.status(400).json({ msg: 'User already exists' });
 
-        // 2. If user doesn't exist, create a new user instance
-        user = new User({
-            name,
-            email,
-            password
-        });
+    user = new User({ name, email, password });
 
-        // 3. Hash the password before saving it to the database
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(password, salt);
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    await user.save();
 
-        // 4. Save the new user to the database
-        await user.save();
-
-        // 5. Create a JSON Web Token (JWT) for the new user
-        const payload = {
-            user: {
-                id: user.id, // The user's unique ID from the database
-            },
-        };
-
-        jwt.sign(
-            payload,
-            process.env.JWT_SECRET, // Your secret key from the .env file
-            { expiresIn: '5h' }, // The token will expire in 5 hours
-            (err, token) => {
-                if (err) throw err;
-                res.status(201).json({ token }); // Send the token back to the client
-            }
-        );
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
+    return sendToken(user, 201, res);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
 };
 
 // --- User Login Function ---
 exports.loginUser = async (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    try {
-        // 1. Check if a user with the provided email exists
-        let user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ msg: 'Invalid Credentials' });
-        }
+  try {
+    let user = await User.findOne({ email }).select('+password');
+    if (!user) return res.status(400).json({ msg: 'Invalid Credentials' });
 
-        // 2. Compare the submitted password with the hashed password in the database
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ msg: 'Invalid Credentials' });
-        }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ msg: 'Invalid Credentials' });
 
-        // 3. If credentials are correct, create and return a JWT
-        const payload = {
-            user: {
-                id: user.id,
-            },
-        };
-
-        jwt.sign(
-            payload,
-            process.env.JWT_SECRET,
-            { expiresIn: '5h' },
-            (err, token) => {
-                if (err) throw err;
-                res.json({ token });
-            }
-        );
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
+    return sendToken(user, 200, res);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
 };
 
 // --- Get Logged In User's Data Function ---
-// This function is for protected routes. It finds the user by the ID
-// that the authMiddleware extracts from the token.
 exports.getLoggedInUser = async (req, res) => {
-    try {
-        // 1. Fetch the user's base profile, converting it to a plain object
-        const user = await User.findById(req.user.id).select('-password').lean();
-        if (!user) {
-            return res.status(404).json({ msg: 'User not found' });
-        }
+  try {
+    const user = await User.findById(req.user.id).select('-password').lean();
+    if (!user) return res.status(404).json({ msg: 'User not found' });
 
-        // 2. Find the most recent log entry for this user
-        const latestLog = await DailyLog.findOne({ user: req.user.id }).sort({ date: -1 });
+    const latestLog = await DailyLog.findOne({ user: req.user.id }).sort({
+      date: -1,
+    });
+    if (latestLog) user.weight = latestLog.weight;
 
-        // 3. If a recent log exists, update the user object's weight with the latest one
-        if (latestLog) {
-            user.weight = latestLog.weight;
-        }
-
-        // 4. Send the potentially modified user object to the frontend
-        res.json(user);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+    res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
 };
 
-// --- NEW FUNCTION: Forgot Password ---
+// --- Forgot Password (Reset Link, No OTP) ---
 exports.forgotPassword = async (req, res) => {
-    try {
-        const user = await User.findOne({ email: req.body.email });
-        if (!user) {
-            // For security, we don't reveal if an email is registered or not.
-            // We send a success message either way to prevent user enumeration.
-            return res.status(200).json({ success: true, data: 'Email sent' });
-        }
+  try {
+    const user = await User.findOne({ email: req.body.email });
+    if (!user) {
+      // Prevent revealing user existence
+      return res.status(200).json({ success: true, data: 'Email sent' });
+    }
 
-        // Get the unhashed reset token from the user model method.
-        const resetToken = user.getResetPasswordToken();
-        await user.save({ validateBeforeSave: false });
+    // Generate and save token with 10 min expiry
+    const resetToken = user.getResetPasswordToken();
+    await user.save({ validateBeforeSave: false });
 
-        // This URL MUST point to your live frontend on Vercel in production.
-        const resetUrl = `${process.env.FRONTEND_URL}/resetpassword/${resetToken}`;
-        //console.log(resetUrl)
+    // Build reset URL (frontend)
+    const resetUrl = `${process.env.FRONTEND_URL}/resetpassword/${resetToken}`;
 
-        const message = `
-            <h1>You have requested a password reset</h1>
-            <p>Please click this link to reset your password. The link is valid for 10 minutes.</p>
-            <a href="${resetUrl}" clicktracking=off>${resetUrl}</a>
+    // HTML email template with clickable button
+    const html = `
+        <!DOCTYPE html>
+        <html xmlns="http://www.w3.org/1999/xhtml">
+        <head>
+          <title>Password Reset</title>
+          <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          <style>
+            body {
+              font-family: 'Open Sans', sans-serif;
+              background-color: #F6FAFB;
+              margin: 0;
+              padding: 0;
+            }
+            .container {
+              max-width: 500px;
+              margin: 50px auto;
+              background: #ffffff;
+              border-radius: 10px;
+              box-shadow: 0 0 10px rgba(0,0,0,0.1);
+              padding: 40px;
+            }
+            .title {
+              font-size: 22px;
+              font-weight: bold;
+              margin-bottom: 20px;
+              color: #000000;
+            }
+            .text {
+              font-size: 15px;
+              color: #333333;
+              margin-bottom: 20px;
+              line-height: 1.6;
+            }
+            .footer {
+              font-size: 13px;
+              color: #888888;
+              margin-top: 30px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="title">Password Reset Request</div>
+            <div class="text">
+              We received a password reset request for your account:
+              <strong>${user.email}</strong>.
+            </div>
+            <div class="text">
+              Click the button below to reset your password. This link will expire in
+              <strong>10 minutes</strong>.
+            </div>
+
+            <a href="${resetUrl}"
+              style="
+                background-color: #22D172;
+                color: #FFFFFF !important;
+                text-decoration: none;
+                padding: 12px 20px;
+                border-radius: 6px;
+                font-weight: bold;
+                display: inline-block;
+                text-align: center;
+                font-family: 'Open Sans', sans-serif;
+              ">
+              Reset Password
+            </a>
+
+            <div class="footer">
+              If you didn’t request this, you can safely ignore this email.
+            </div>
+          </div>
+        </body>
+        </html>
         `;
 
-        await sendEmail({
-            email: user.email,
-            subject: 'Password Reset Request',
-            message,
-        });
 
-        res.status(200).json({ success: true, data: 'Email sent' });
-    } catch (err) {
-        // Clear tokens on error to prevent bad state.
-        const user = await User.findOne({ email: req.body.email });
-        if(user) {
-            user.resetPasswordToken = undefined;
-            user.resetPasswordExpire = undefined;
-            await user.save({ validateBeforeSave: false });
-        }
-        res.status(500).send('Server Error');
+    // Send the email
+    await sendEmail({
+      email: user.email,
+      subject: 'Password Reset Request - BodyTrack App',
+      html,
+    });
+
+    res.status(200).json({ success: true, data: 'Reset email sent successfully' });
+  } catch (err) {
+    console.error(err);
+    const user = await User.findOne({ email: req.body.email });
+    if (user) {
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
     }
+    res.status(500).send('Server Error');
+  }
 };
 
-// --- NEW FUNCTION: Reset Password ---
+// --- Reset Password ---
 exports.resetPassword = async (req, res) => {
-    try {
-        // Hash the token from the URL to match the hashed version stored in the database.
-        const resetPasswordToken = crypto
-            .createHash('sha256')
-            .update(req.params.resettoken)
-            .digest('hex');
+  try {
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(req.params.resettoken)
+      .digest('hex');
 
-        // Find the user by the hashed token and check that the token has not expired.
-        const user = await User.findOne({
-            resetPasswordToken,
-            resetPasswordExpire: { $gt: Date.now() },
-        });
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    });
 
-        if (!user) {
-            return res.status(400).json({ success: false, data: 'Invalid or expired token' });
-        }
+    if (!user)
+      return res
+        .status(400)
+        .json({ success: false, data: 'Invalid or expired token' });
 
-        // Set the new password, hash it, and clear the reset token fields.
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(req.body.password, salt);
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
-        await user.save();
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(req.body.password, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
 
-        res.status(200).json({ success: true, data: 'Password reset successful' });
-    } catch (err) {
-        res.status(500).send('Server Error');
-    }
+    return res
+      .status(200)
+      .json({ success: true, data: 'Password reset successful' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server Error');
+  }
+};
+
+// --- Logout User ---
+exports.logoutUser = (req, res) => {
+  res.cookie('token', 'none', {
+    expires: new Date(Date.now() + 5 * 1000),
+    httpOnly: true,
+  });
+  return res.status(200).json({ success: true, message: 'Logged out' });
 };
