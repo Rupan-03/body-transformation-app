@@ -17,6 +17,7 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5173', // local dev
   'https://zenithfitapp.onrender.com', // 🔁 your deployed frontend URL
+  'https://body-transformation-app.vercel.app',
 ];
 
 app.use(cors({
