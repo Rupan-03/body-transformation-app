@@ -1,34 +1,21 @@
-// utils/sendEmail.js
 const nodemailer = require('nodemailer');
 const { renderVerifyEmail, renderPasswordReset } = require('./emailTemplates');
 
 const sendEmail = async (options) => {
   try {
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com', // ✅ explicit for Render (do NOT use service)
-      port: 587,
+      host: process.env.EMAIL_HOST || 'smtp-relay.brevo.com',
+      port: process.env.EMAIL_PORT || 587,
       secure: false,
       auth: {
         user: process.env.EMAIL_USERNAME,
         pass: process.env.EMAIL_PASSWORD,
       },
     });
-    // const transporter = nodemailer.createTransport({
-    //   service: process.env.EMAIL_SERVICE || 'gmail',
-    //   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    //   port: process.env.EMAIL_PORT || 587,
-    //   secure: false,
-    //   auth: {
-    //     user: process.env.EMAIL_USERNAME,
-    //     pass: process.env.EMAIL_PASSWORD,
-    //   },
-    // });
 
-    // --- Choose what HTML to send ---
     let htmlMessage;
 
     if (options.html) {
-      // ✅ use provided HTML (like in your reset link)
       htmlMessage = options.html;
     } else if (options.type === 'verify') {
       htmlMessage = renderVerifyEmail(options.email, options.otp);
@@ -44,7 +31,7 @@ const sendEmail = async (options) => {
       from: `BodyTrack App <${process.env.EMAIL_FROM || process.env.EMAIL_USERNAME}>`,
       to: options.email,
       subject: options.subject || 'BodyTrack Notification',
-      html: htmlMessage, // ✅ always send as HTML
+      html: htmlMessage,
     };
 
     await transporter.sendMail(mailOptions);
