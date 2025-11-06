@@ -1,70 +1,70 @@
-//DailyLog.js
+// backend/models/DailyLog.js
 
 const mongoose = require('mongoose');
 
-// --- NEW: Define sub-schemas for structured workout data ---
+// --- NUTRITION SUBSCHEMA ---
+const MealSchema = new mongoose.Schema({
+  calories: { type: Number, default: 0 },
+  protein: { type: Number, default: 0 },
+  fat: { type: Number, default: 0 },
+  carbs: { type: Number, default: 0 },
+});
+
+// --- WORKOUT/CARDIO UNIFIED SESSION SCHEMA ---
 const ExerciseSetSchema = new mongoose.Schema({
-    reps: { type: Number, required: true },
-    weight: { type: Number, required: true },
+  reps: { type: Number },
+  weight: { type: Number },
 });
 
-const StrengthExerciseSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    sets: [ExerciseSetSchema], // Array of sets for this exercise
+const SessionSchema = new mongoose.Schema({
+  type: { 
+    type: String, 
+    enum: ['workout', 'cardio'], 
+    required: true 
+  },
+  name: { type: String, required: true }, // e.g. "Leg Day" or "Treadmill"
+  // If type = workout
+  exercises: [{
+    name: { type: String },
+    sets: [ExerciseSetSchema],
+  }],
+  // If type = cardio
+  durationMinutes: { type: Number },
+  distanceKm: { type: Number },
+  notes: { type: String },
 });
 
-const CardioExerciseSchema = new mongoose.Schema({
-    type: { type: String, required: true }, // e.g., 'Running', 'Cycling'
-    duration: { type: Number, required: true }, // in minutes
-});
-// --- END NEW SUB-SCHEMAS ---
-
-const DailyLogSchema = new mongoose.Schema({
-    // Link to the user who created this log
+// --- MAIN DAILY LOG SCHEMA ---
+const DailyLogSchema = new mongoose.Schema(
+  {
     user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
     },
-    // The specific date for this log entry
     date: {
-        type: Date,
-        required: true,
-    },
-    // The user's weight on this specific day
-    weight: {
-        type: Number,
-        required: true,
-    },
-    // The calories the user consumed on this day
-    calorieIntake: {
-        type: Number,
-        required: true,
-    },
-    // The protein the user consumed on this day
-    proteinIntake: {
-        type: Number,
-        required: true,
+      type: Date,
+      required: true,
     },
 
-    // Strength workout details (conditionally required)
-    workoutSplit: {
-        type: String,
+    // Body weight for the day
+    weight: {
+      type: Number,
+      required: true,
     },
-    strengthExercises: {
-        type: [StrengthExerciseSchema],
-        default: undefined, // Don't save an empty array by default
-        // Require at least one exercise IF it's a workout day AND the array isn't already populated
+
+    // --- NEW: Nutrition by meals ---
+    nutrition: {
+      breakfast: { type: MealSchema, default: () => ({}) },
+      lunch: { type: MealSchema, default: () => ({}) },
+      dinner: { type: MealSchema, default: () => ({}) },
     },
-    // Cardio workout details (conditionally required)
-    cardioExercises: {
-        type: [CardioExerciseSchema],
-        default: undefined, // Don't save an empty array by default
-        // Require at least one cardio activity IF it's a cardio day AND the array isn't already populated
-    },
-    // --- END NEW WORKOUT FIELDS ---
-    
-}, { timestamps: true }); // Adds createdAt and updatedAt fields automatically
+
+    // --- Combined workout/cardio sessions ---
+    sessions: [SessionSchema],
+  },
+  { timestamps: true }
+);
 
 // Ensure a user can only have one log entry per day
 DailyLogSchema.index({ user: 1, date: 1 }, { unique: true });

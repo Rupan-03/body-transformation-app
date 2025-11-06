@@ -1,23 +1,39 @@
+// backend/routes/api/logs.js
+
 const express = require('express');
 const router = express.Router();
-const { createOrUpdateLog, getUserLogs, deleteLog, updateLog, getExerciseLists } = require('../../controllers/logController');
+const {
+  createOrUpdateLog,
+  getUserLogs,
+  deleteLog,
+  updateLog,
+  getExerciseLists,
+} = require('../../controllers/logController');
 const authMiddleware = require('../../middleware/authMiddleware');
 
-// Route to get all logs for a user
+// @route   GET /api/logs
+// @desc    Get all logs for the logged-in user
+// @access  Private
 router.get('/', authMiddleware, getUserLogs);
 
-// Route to create or update a log for today
+// @route   POST /api/logs
+// @desc    Create or update today's log
+// @access  Private
 router.post('/', authMiddleware, createOrUpdateLog);
 
-
-// The ':id' is a URL parameter that will hold the ID of the log to delete
-router.delete('/:id', authMiddleware, deleteLog);
-
-// Handles requests to modify an existing log entry
+// @route   PUT /api/logs/:id
+// @desc    Update a specific log entry
+// @access  Private
 router.put('/:id', authMiddleware, updateLog);
 
-// --- NEW ROUTE ---
-// Provides the list of exercise names for the autocomplete feature
+// @route   DELETE /api/logs/:id
+// @desc    Delete a specific log entry
+// @access  Private
+router.delete('/:id', authMiddleware, deleteLog);
+
+// @route   GET /api/logs/exerciselist
+// @desc    Fetch autocomplete exercise name lists
+// @access  Private
 router.get('/exerciselist', authMiddleware, getExerciseLists);
 
 module.exports = router;
