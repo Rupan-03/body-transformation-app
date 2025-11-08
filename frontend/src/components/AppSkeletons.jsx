@@ -144,11 +144,66 @@ export const PageShellSkeleton = () => (
   </div>
 );
 
+/* ===================== AUTH SKELETONS ===================== */
+
+/** Minimal form card skeleton (used by login & signup) */
+export const AuthFormSkeleton = () => (
+  <div className="w-full max-w-md mx-auto bg-white/90 backdrop-blur rounded-2xl border border-slate-200/60 p-6 shadow-sm">
+    <div className="mb-6 space-y-2">
+      <Sk className="h-6 w-40" />
+      <Sk className="h-4 w-64" />
+    </div>
+    <div className="space-y-3">
+      <Sk className="h-10 w-full rounded-lg" />
+      <Sk className="h-10 w-full rounded-lg" />
+      <Sk className="h-10 w-2/3 rounded-lg" />
+    </div>
+    <div className="mt-6 space-y-3">
+      <Sk className="h-11 w-full rounded-xl" />
+      <Sk className="h-4 w-24" />
+    </div>
+  </div>
+);
+
+/** Full Auth page skeleton (header + tabs + form) */
+export const AuthPageSkeleton = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
+    <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+      {/* Left side brand/illustration */}
+      <div className="hidden lg:block">
+        <div className="space-y-5">
+          <Sk className="h-8 w-44 rounded-md" />
+          <Sk className="h-5 w-80" />
+          <Sk className="h-5 w-72" />
+          <Sk className="h-5 w-64" />
+          <div className="grid grid-cols-3 gap-3 pt-2">
+            <Sk className="h-20 w-full rounded-xl" />
+            <Sk className="h-20 w-full rounded-xl" />
+            <Sk className="h-20 w-full rounded-xl" />
+          </div>
+        </div>
+      </div>
+
+      {/* Right side auth card */}
+      <div className="space-y-4">
+        {/* Fake tabs */}
+        <div className="bg-white/80 backdrop-blur rounded-xl border border-slate-200/60 p-2 flex gap-2">
+          <Sk className="h-10 w-28 rounded-lg" />
+          <Sk className="h-10 w-28 rounded-lg" />
+        </div>
+
+        {/* Form card */}
+        <AuthFormSkeleton />
+      </div>
+    </div>
+  </div>
+);
+
 /* ---- Aliases so imports don't break across files ---- */
 export const FullAppSkeleton = PageShellSkeleton;       // legacy name
-export const StatCardSkeletonRow = StatsRowSkeleton;     // legacy name
-export const WeekGroupSkeleton = WeekAccordionSkeleton;  // legacy name
-export const SectionCardSkeleton = CardSkeleton;         // legacy name (fixes your import)
+export const StatCardSkeletonRow = StatsRowSkeleton;    // legacy name
+export const WeekGroupSkeleton = WeekAccordionSkeleton; // legacy name
+export const SectionCardSkeleton = CardSkeleton;        // legacy name (fixes your import)
 
 /* Optional default export */
 export default PageShellSkeleton;

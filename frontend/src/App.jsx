@@ -1,8 +1,7 @@
-// src/App.jsx
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FullAppSkeleton, PageShellSkeleton } from './components/AppSkeletons';
+import { FullAppSkeleton, PageShellSkeleton, AuthPageSkeleton } from './components/AppSkeletons';
 
 // Lazy load components for better performance
 const AuthPage = lazy(() => import('./components/AuthPage'));
@@ -154,9 +153,12 @@ function App() {
     return <AppLoading />;
   }
 
+  // 🔹 Choose a route-aware fallback: Auth skeleton when logged out, app shell inside
+  const suspenseFallback = user ? <PageShellSkeleton /> : <AuthPageSkeleton />;
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <Suspense fallback={<PageShellSkeleton />}>
+      <Suspense fallback={suspenseFallback}>
         <AnimatePresence mode="wait">
           <motion.div
             key={`${route}-${currentPage}`}
