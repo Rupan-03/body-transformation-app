@@ -11,7 +11,10 @@ import {
   Edit,
   Trash2,
 } from "lucide-react";
-import LoadingSpinner from "./LoadingSpinner";
+import {
+  StatCardSkeletonRow,
+  WeekAccordionSkeleton,
+} from "./AppSkeletons";
 
 /* ------------------------------- Utilities ------------------------------- */
 const fmtDate = (d) =>
@@ -323,32 +326,36 @@ const DailyLogHistory = ({
       className="space-y-6"
     >
       {/* Top summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard label="Current Streak" value={`${currentStreak} days`} icon={Calendar} />
-        <StatCard label="Monthly Logs" value={`${monthlyCount} entries`} icon={Calendar} />
-        <StatCard
-          label="Last Entry"
-          value={
-            lastEntry
-              ? (() => {
-                  const todayYmd = ymd(new Date());
-                  const yest = new Date();
-                  yest.setDate(yest.getDate() - 1);
-                  const yestYmd = ymd(yest);
-                  const lastYmd = ymd(lastEntry);
-                  if (lastYmd === todayYmd) return "Today";
-                  if (lastYmd === yestYmd) return "Yesterday";
-                  return fmtDate(lastEntry);
-                })()
-              : "—"
-          }
-          icon={Calendar}
-        />
-      </div>
+      {loading ? (
+        <StatCardSkeletonRow count={3} />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StatCard label="Current Streak" value={`${currentStreak} days`} icon={Calendar} />
+          <StatCard label="Monthly Logs" value={`${monthlyCount} entries`} icon={Calendar} />
+          <StatCard
+            label="Last Entry"
+            value={
+              lastEntry
+                ? (() => {
+                    const todayYmd = ymd(new Date());
+                    const yest = new Date();
+                    yest.setDate(yest.getDate() - 1);
+                    const yestYmd = ymd(yest);
+                    const lastYmd = ymd(lastEntry);
+                    if (lastYmd === todayYmd) return "Today";
+                    if (lastYmd === yestYmd) return "Yesterday";
+                    return fmtDate(lastEntry);
+                  })()
+                : "—"
+            }
+            icon={Calendar}
+          />
+        </div>
+      )}
 
       {/* History list */}
       {loading ? (
-        <LoadingSpinner fullScreen label="Fetching your history…" />
+        <WeekAccordionSkeleton items={3} />
       ) : grouped.length === 0 ? (
         <div className="text-center py-16 border border-dashed border-slate-300 rounded-2xl bg-slate-50">
           <div className="text-2xl font-semibold text-slate-800 mb-2">

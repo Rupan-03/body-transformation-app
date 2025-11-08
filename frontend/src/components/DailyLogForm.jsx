@@ -48,11 +48,18 @@ const NutritionSection = ({ formData, onNutritionChange }) => (
           <div className="space-y-3">
             {["calories", "protein", "fat", "carbs"].map((field) => (
               <div key={field}>
-                <label className="block text-xs font-medium text-slate-600 mb-1 capitalize">
+                <label
+                  htmlFor={`${meal}-${field}`}
+                  className="block text-xs font-medium text-slate-600 mb-1 capitalize"
+                >
                   {field}
                 </label>
                 <input
+                  id={`${meal}-${field}`}
+                  inputMode="numeric"
                   type="number"
+                  min="0"
+                  step="1"
                   placeholder="0"
                   value={formData.nutrition[meal][field]}
                   onChange={(e) =>
@@ -80,21 +87,29 @@ const ExerciseSet = ({
   <div className="flex gap-2 items-center">
     <input
       type="number"
+      inputMode="numeric"
+      min="0"
+      step="1"
       placeholder="Reps"
       value={set.reps}
       onChange={(e) =>
         onSetChange(exerciseIndex, setIndex, "reps", e.target.value)
       }
       className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      aria-label="Reps"
     />
     <input
       type="number"
+      inputMode="decimal"
+      min="0"
+      step="0.5"
       placeholder="Weight"
       value={set.weight}
       onChange={(e) =>
         onSetChange(exerciseIndex, setIndex, "weight", e.target.value)
       }
       className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      aria-label="Weight"
     />
     <button
       type="button"
@@ -197,7 +212,7 @@ const DailyLogForm = ({
   return (
     <motion.form
       variants={itemVariants}
-      initial="visible"   // <-- force visible so it doesn't stay hidden from parent variants
+      initial="visible"   // keep visible; parent handles skeleton timing
       animate="visible"
       onSubmit={onSubmit}
       className="space-y-8"
@@ -216,9 +231,15 @@ const DailyLogForm = ({
           Daily Weight
         </h3>
         <div className="max-w-xs">
+          <label htmlFor="weight-input" className="sr-only">
+            Weight in kg
+          </label>
           <input
+            id="weight-input"
             type="number"
+            inputMode="decimal"
             step="0.1"
+            min="0"
             placeholder="Enter weight in kg"
             value={formData.weight}
             onChange={(e) =>
@@ -341,6 +362,9 @@ const DailyLogForm = ({
                 </label>
                 <input
                   type="number"
+                  inputMode="numeric"
+                  min="0"
+                  step="1"
                   placeholder="0"
                   value={cardio.duration}
                   onChange={(e) =>
@@ -356,6 +380,8 @@ const DailyLogForm = ({
                 </label>
                 <input
                   type="number"
+                  inputMode="decimal"
+                  min="0"
                   step="0.1"
                   placeholder="0.0"
                   value={cardio.distance}
@@ -390,7 +416,12 @@ const DailyLogForm = ({
       </motion.section>
 
       {/* Submit */}
-      <motion.div variants={itemVariants} initial="visible" animate="visible" className="flex justify-end">
+      <motion.div
+        variants={itemVariants}
+        initial="visible"
+        animate="visible"
+        className="flex justify-end"
+      >
         <button
           type="submit"
           className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl shadow-lg hover:shadow-xl transition-all font-semibold"

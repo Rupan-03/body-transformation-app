@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
-import LoadingSpinner from './LoadingSpinner';
+import { SectionCardSkeleton } from './AppSkeletons'; // ⮕ use skeletons
 
 const GOALS_API_URL = `${import.meta.env.VITE_API_URL}/goals`;
 
@@ -318,7 +318,12 @@ export default function WeeklyProgressPage({ onNavigate, onUpdateUser }) {
         <h2 className="text-2xl font-bold text-slate-800">Weekly Performance</h2>
 
         {loading ? (
-          <LoadingSpinner fullScreen label="Loading your progress data…" />
+          // Skeletons instead of spinner
+          <div className="space-y-6">
+            <SectionCardSkeleton lines={4} />
+            <SectionCardSkeleton lines={4} />
+            <SectionCardSkeleton lines={4} />
+          </div>
         ) : summary.length === 0 ? (
           <div className="text-center py-16 border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50">
             <BarChart3 size={48} className="mx-auto mb-4 text-slate-400" />

@@ -6,6 +6,12 @@ import DailyLogForm from "./DailyLogForm";
 import DailyLogHistory from "./DailyLogHistory";
 import DailyLogModals from "./DailyLogModals";
 
+// Shared skeletons
+import {
+  LogFormSkeleton,
+  HistoryListSkeleton,
+} from "./LoadingSkeletons";
+
 const LOGS_API_URL = `${import.meta.env.VITE_API_URL}/logs`;
 
 /* ----------------------------- date utilities ---------------------------- */
@@ -39,7 +45,7 @@ const initialFormData = {
 export default function DailyLog({
   strengthNameSuggestions = [],
   cardioNameSuggestions = [],
-  /** NEW: control what parts to render (for page-level toggles) */
+  /** Controls what parts to render (for page-level toggles) */
   showForm = true,
   showHistory = true,
 }) {
@@ -460,42 +466,48 @@ export default function DailyLog({
       </div>
 
       {/* Today's Log (create) */}
-      {showForm && (
-        <DailyLogForm
-          formData={formData}
-          setFormData={setFormData}
-          error={error}
-          onSubmit={handleSubmit}
-          onNutritionChange={handleNutritionChange}
-          onStrengthChange={handleStrengthChange}
-          onSetChange={handleSetChange}
-          onCardioChange={handleCardioChange}
-          addExercise={addExercise}
-          removeExercise={removeExercise}
-          addSet={addSet}
-          removeSet={removeSet}
-          addCardio={addCardio}
-          removeCardio={removeCardio}
-          exerciseSuggestions={exerciseSuggestions}
-          cardioSuggestions={cardioSuggestions}
-          workoutSplitSuggestions={workoutSplitSuggestions}
-        />
-      )}
+      {showForm &&
+        (loading ? (
+          <LogFormSkeleton />
+        ) : (
+          <DailyLogForm
+            formData={formData}
+            setFormData={setFormData}
+            error={error}
+            onSubmit={handleSubmit}
+            onNutritionChange={handleNutritionChange}
+            onStrengthChange={handleStrengthChange}
+            onSetChange={handleSetChange}
+            onCardioChange={handleCardioChange}
+            addExercise={addExercise}
+            removeExercise={removeExercise}
+            addSet={addSet}
+            removeSet={removeSet}
+            addCardio={addCardio}
+            removeCardio={removeCardio}
+            exerciseSuggestions={exerciseSuggestions}
+            cardioSuggestions={cardioSuggestions}
+            workoutSplitSuggestions={workoutSplitSuggestions}
+          />
+        ))}
 
       {/* History */}
-      {showHistory && (
-        <DailyLogHistory
-          loading={loading}
-          grouped={grouped}
-          activeWeekKey={activeWeekKey}
-          setActiveWeekKey={setActiveWeekKey}
-          formatWeekHeader={formatWeekHeader}
-          onEdit={openEdit}
-          onDelete={openDelete}
-        />
-      )}
+      {showHistory &&
+        (loading ? (
+          <HistoryListSkeleton />
+        ) : (
+          <DailyLogHistory
+            loading={loading}
+            grouped={grouped}
+            activeWeekKey={activeWeekKey}
+            setActiveWeekKey={setActiveWeekKey}
+            formatWeekHeader={formatWeekHeader}
+            onEdit={openEdit}
+            onDelete={openDelete}
+          />
+        ))}
 
-      {/* Modals (safe to keep even if history hidden) */}
+      {/* Modals (safe even if history hidden) */}
       <DailyLogModals
         isEditModalOpen={isEditModalOpen}
         setIsEditModalOpen={setIsEditModalOpen}

@@ -1,7 +1,8 @@
+// src/App.jsx
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { FullAppSkeleton, PageShellSkeleton } from './components/AppSkeletons';
 
 // Lazy load components for better performance
 const AuthPage = lazy(() => import('./components/AuthPage'));
@@ -16,36 +17,12 @@ const ResetPasswordPage = lazy(() => import('./components/ResetPasswordPage'));
 
 const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
-// Modern loading components
-const AppLoading = () => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-    <div className="text-center space-y-4">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        className="mx-auto"
-      >
-        <Loader2 className="h-8 w-8 text-blue-600" />
-      </motion.div>
-      <p className="text-slate-600 font-medium">Loading your transformation journey...</p>
-    </div>
-  </div>
-);
+// Decide if the profile is complete (prevents getting stuck on Profile page)
+const isProfileComplete = (u) =>
+  !!(u && u.gender && u.height && u.weight && u.activityLevel && u.primaryGoal);
 
-const PageFallbackLoader = () => (
-  <div className="min-h-[400px] flex items-center justify-center">
-    <div className="text-center space-y-3">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        className="mx-auto"
-      >
-        <Loader2 className="h-6 w-6 text-blue-500" />
-      </motion.div>
-      <p className="text-slate-500 text-sm">Loading page...</p>
-    </div>
-  </div>
-);
+// App-level loading (full-screen skeleton)
+const AppLoading = () => <FullAppSkeleton />;
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -90,15 +67,22 @@ function App() {
     setToken(newToken);
   };
 
-  const handleProfileSave = (updatedUser) => setUser(updatedUser);
-  
+  // After profile save, update user and redirect to dashboard if complete
+  const handleProfileSave = (updatedUser) => {
+    const next = updatedUser?.user || updatedUser; // accept {user: …} or user object
+    setUser(next);
+    if (isProfileComplete(next)) {
+      handleNavigation('dashboard');
+    }
+  };
+
   const handleLogout = () => {
     setCurrentPage('dashboard');
     setToken(null);
   };
 
   const handleUserUpdate = (updatedUser) => setUser(updatedUser);
-  
+
   const handleNavigation = (page) => {
     setCurrentPage(page);
     // Update URL without full page reload
@@ -110,25 +94,14 @@ function App() {
     const pageConfig = {
       logHistory: <LogHistoryPage onNavigate={handleNavigation} />,
       weeklyProgress: (
-        <WeeklyProgressPage 
-          onUpdateUser={handleUserUpdate} 
-          onNavigate={handleNavigation} 
-        />
+        <WeeklyProgressPage onUpdateUser={handleUserUpdate} onNavigate={handleNavigation} />
       ),
       settings: (
-        <SettingsPage 
-          user={user} 
-          onLogout={handleLogout} 
-          onUpdateUser={handleUserUpdate} 
-        />
+        <SettingsPage user={user} onLogout={handleLogout} onUpdateUser={handleUserUpdate} />
       ),
       dashboard: (
-        <DashboardPage 
-          user={user} 
-          onUpdateUser={handleUserUpdate} 
-          onNavigate={handleNavigation} // ← FIXED: Added missing prop
-        />
-      )
+        <DashboardPage user={user} onUpdateUser={handleUserUpdate} onNavigate={handleNavigation} />
+      ),
     };
 
     return pageConfig[currentPage] || pageConfig.dashboard;
@@ -140,8 +113,8 @@ function App() {
     if (route.startsWith('/resetpassword/')) {
       const resetToken = route.split('/')[2];
       return (
-        <ResetPasswordPage 
-          token={resetToken} 
+        <ResetPasswordPage
+          token={resetToken}
           onPasswordReset={() => {
             handleLogout();
             window.history.pushState({}, '', '/');
@@ -159,15 +132,15 @@ function App() {
       return <AuthPage onAuthSuccess={handleAuthSuccess} onNavigate={handleNavigation} />;
     }
 
-    // Profile setup required
-    if (!user.weight) {
-      return <ProfilePage onProfileSave={handleProfileSave} />;
+    // Profile setup required (use full completion check)
+    if (!isProfileComplete(user)) {
+      return <ProfilePage onProfileSave={handleProfileSave} onBackToAuth={handleLogout} />;
     }
 
     // Main application
     return (
-      <AppLayout 
-        user={user} 
+      <AppLayout
+        user={user}
         currentPage={currentPage}
         onNavigate={handleNavigation}
         onLogout={handleLogout}
@@ -183,14 +156,14 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Suspense fallback={<PageFallbackLoader />}>
+      <Suspense fallback={<PageShellSkeleton />}>
         <AnimatePresence mode="wait">
           <motion.div
             key={`${route}-${currentPage}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
             className="w-full"
           >
             {renderContent()}

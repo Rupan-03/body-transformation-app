@@ -6,6 +6,12 @@ import { Calendar, Clock } from "lucide-react";
 import DailyLog from "./DailyLog";
 import LoadingSpinner from "./LoadingSpinner";
 
+// Skeletons (shown while exercise name suggestions load)
+import {
+  LogFormSkeleton,
+  HistoryListSkeleton,
+} from "./LoadingSkeletons";
+
 const EXERCISE_LIST_URL = `${import.meta.env.VITE_API_URL}/logs/exerciselist`;
 
 export default function LogHistoryPage() {
@@ -14,7 +20,8 @@ export default function LogHistoryPage() {
     cardioNames: [],
   });
   const [listLoading, setListLoading] = useState(true);
-  const [activeView, setActiveView] = useState("today"); // "today" | "history"
+  // "today" | "history"
+  const [activeView, setActiveView] = useState("today");
 
   useEffect(() => {
     const fetchExerciseLists = async () => {
@@ -22,7 +29,7 @@ export default function LogHistoryPage() {
         const res = await axios.get(EXERCISE_LIST_URL);
         setExerciseLists(res.data || { strengthNames: [], cardioNames: [] });
       } catch (err) {
-        // Non-fatal; we can render without suggestions.
+        // Non-fatal; page still works without suggestions
         console.error("Could not fetch exercise lists", err);
       } finally {
         setListLoading(false);
@@ -41,6 +48,28 @@ export default function LogHistoryPage() {
     visible: { opacity: 1, y: 0 },
   };
 
+  const renderSkeletonForView = () =>
+    activeView === "today" ? <LogFormSkeleton /> : <HistoryListSkeleton />;
+
+  const renderDailyLogForView = () =>
+    activeView === "today" ? (
+      <DailyLog
+        key="today-view"
+        strengthNameSuggestions={exerciseLists.strengthNames}
+        cardioNameSuggestions={exerciseLists.cardioNames}
+        showForm={true}
+        showHistory={false}
+      />
+    ) : (
+      <DailyLog
+        key="history-view"
+        strengthNameSuggestions={exerciseLists.strengthNames}
+        cardioNameSuggestions={exerciseLists.cardioNames}
+        showForm={false}
+        showHistory={true}
+      />
+    );
+
   return (
     <motion.div
       variants={containerVariants}
@@ -58,11 +87,7 @@ export default function LogHistoryPage() {
             <div className="mt-2 flex items-center gap-3 text-slate-600">
               <span>Add a new entry for today or review your past progress.</span>
               {listLoading && (
-                <LoadingSpinner
-                  inline
-                  size="sm"
-                  label="Loading suggestions…"
-                />
+                <LoadingSpinner inline size="sm" label="Loading suggestions…" />
               )}
             </div>
           </div>
@@ -99,33 +124,17 @@ export default function LogHistoryPage() {
         </div>
       </motion.div>
 
-      {/* Main Content (Form-only vs History-only) */}
+      {/* Main Content (toggle-controlled) */}
       <motion.div variants={itemVariants}>
         <AnimatePresence mode="wait">
           <motion.div
-            key={activeView}
+            key={listLoading ? `skeleton-${activeView}` : activeView}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
           >
-            {activeView === "today" ? (
-              <DailyLog
-                key="today-view"
-                strengthNameSuggestions={exerciseLists.strengthNames}
-                cardioNameSuggestions={exerciseLists.cardioNames}
-                showForm={true}
-                showHistory={false}
-              />
-            ) : (
-              <DailyLog
-                key="history-view"
-                strengthNameSuggestions={exerciseLists.strengthNames}
-                cardioNameSuggestions={exerciseLists.cardioNames}
-                showForm={false}
-                showHistory={true}
-              />
-            )}
+            {listLoading ? renderSkeletonForView() : renderDailyLogForView()}
           </motion.div>
         </AnimatePresence>
       </motion.div>
