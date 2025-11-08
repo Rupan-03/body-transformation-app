@@ -1,12 +1,46 @@
 @import "tailwindcss";
 
+/* Base styles */
 body {
-  @apply bg-gray-50 text-gray-800 antialiased;
+  @apply bg-slate-50 text-slate-900 antialiased font-sans;
 }
 
-/* This ensures elements that are animating in start from an invisible state */
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
+
+/* Focus states */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  @apply outline-2 outline-offset-2 outline-blue-500;
+}
+
+/* Animation utilities */
 @layer utilities {
   .animate-in {
     animation-fill-mode: forwards;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
   }
 }

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react'; // <-- ADD Suspense, lazy
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2 } from 'lucide-react';
 
-// --- Lazy Load ALL Your Page Components ---
-// This tells React to only load these components' code when they are actually rendered.
+// Lazy load components for better performance
 const AuthPage = lazy(() => import('./components/AuthPage'));
 const ProfilePage = lazy(() => import('./components/ProfilePage'));
 const AppLayout = lazy(() => import('./components/AppLayout'));
@@ -12,120 +13,192 @@ const WeeklyProgressPage = lazy(() => import('./components/WeeklyProgressPage'))
 const SettingsPage = lazy(() => import('./components/SettingsPage'));
 const ForgotPasswordPage = lazy(() => import('./components/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./components/ResetPasswordPage'));
-// --- END Lazy Load ---
 
 const AUTH_API_URL = `${import.meta.env.VITE_API_URL}/auth`;
 
+// Modern loading components
+const AppLoading = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+    <div className="text-center space-y-4">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="mx-auto"
+      >
+        <Loader2 className="h-8 w-8 text-blue-600" />
+      </motion.div>
+      <p className="text-slate-600 font-medium">Loading your transformation journey...</p>
+    </div>
+  </div>
+);
+
+const PageFallbackLoader = () => (
+  <div className="min-h-[400px] flex items-center justify-center">
+    <div className="text-center space-y-3">
+      <motion.div
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="mx-auto"
+      >
+        <Loader2 className="h-6 w-6 text-blue-500" />
+      </motion.div>
+      <p className="text-slate-500 text-sm">Loading page...</p>
+    </div>
+  </div>
+);
+
 function App() {
-    const [token, setToken] = useState(localStorage.getItem('token'));
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [currentPage, setCurrentPage] = useState('dashboard');
-    const [route, setRoute] = useState(window.location.pathname);
+  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [route, setRoute] = useState(window.location.pathname);
 
-    useEffect(() => {
-        const onLocationChange = () => setRoute(window.location.pathname);
-        window.addEventListener('popstate', onLocationChange);
-        return () => window.removeEventListener('popstate', onLocationChange);
-    }, []);
+  // Route handling
+  useEffect(() => {
+    const onLocationChange = () => setRoute(window.location.pathname);
+    window.addEventListener('popstate', onLocationChange);
+    return () => window.removeEventListener('popstate', onLocationChange);
+  }, []);
 
-    useEffect(() => {
-        const fetchUserData = async () => {
-            if (token) {
-                localStorage.setItem('token', token);
-                axios.defaults.headers.common['x-auth-token'] = token;
-                try {
-                    // Corrected endpoint based on your provided code: /auth/user
-                    const res = await axios.get(`${AUTH_API_URL}/user`);
-                    setUser(res.data);
-                } catch (err) { setToken(null); }
-            } else {
-                localStorage.removeItem('token');
-                delete axios.defaults.headers.common['x-auth-token'];
-                setUser(null);
-            }
-            setLoading(false);
-        };
-        fetchUserData();
-    }, [token]);
-
-    const handleAuthSuccess = (newToken) => {
-        setCurrentPage('dashboard');
-        setToken(newToken);
-    };
-    const handleProfileSave = (updatedUser) => setUser(updatedUser);
-    const handleLogout = () => {
-        setCurrentPage('dashboard');
-        setToken(null);
-    };
-    const handleUserUpdate = (updatedUser) => setUser(updatedUser);
-    
-    const renderLoggedInPages = () => {
-        switch (currentPage) {
-            case 'logHistory': return <LogHistoryPage />;
-            case 'weeklyProgress': return <WeeklyProgressPage onUpdateUser={handleUserUpdate} onNavigate={setCurrentPage} />;
-            case 'settings': return <SettingsPage user={user} onLogout={handleLogout} onUpdateUser={handleUserUpdate} />;
-            case 'dashboard':
-            default: return <DashboardPage user={user} onUpdateUser={handleUserUpdate} />;
+  // User authentication
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (token) {
+        localStorage.setItem('token', token);
+        axios.defaults.headers.common['x-auth-token'] = token;
+        try {
+          const res = await axios.get(`${AUTH_API_URL}/user`);
+          setUser(res.data);
+        } catch (err) {
+          setToken(null);
+          console.error('Auth error:', err);
         }
+      } else {
+        localStorage.removeItem('token');
+        delete axios.defaults.headers.common['x-auth-token'];
+        setUser(null);
+      }
+      setLoading(false);
+    };
+    fetchUserData();
+  }, [token]);
+
+  // Event handlers
+  const handleAuthSuccess = (newToken) => {
+    setCurrentPage('dashboard');
+    setToken(newToken);
+  };
+
+  const handleProfileSave = (updatedUser) => setUser(updatedUser);
+  
+  const handleLogout = () => {
+    setCurrentPage('dashboard');
+    setToken(null);
+  };
+
+  const handleUserUpdate = (updatedUser) => setUser(updatedUser);
+  
+  const handleNavigation = (page) => {
+    setCurrentPage(page);
+    // Update URL without full page reload
+    window.history.pushState({}, '', `/${page === 'dashboard' ? '' : page}`);
+  };
+
+  // Page rendering for logged-in users
+  const renderLoggedInPages = () => {
+    const pageConfig = {
+      logHistory: <LogHistoryPage onNavigate={handleNavigation} />,
+      weeklyProgress: (
+        <WeeklyProgressPage 
+          onUpdateUser={handleUserUpdate} 
+          onNavigate={handleNavigation} 
+        />
+      ),
+      settings: (
+        <SettingsPage 
+          user={user} 
+          onLogout={handleLogout} 
+          onUpdateUser={handleUserUpdate} 
+        />
+      ),
+      dashboard: (
+        <DashboardPage 
+          user={user} 
+          onUpdateUser={handleUserUpdate} 
+          onNavigate={handleNavigation} // ← FIXED: Added missing prop
+        />
+      )
     };
 
-    // A simple loading indicator for lazy-loaded components
-    const PageFallbackLoader = () => (
-        <div className="flex items-center justify-center min-h-screen text-gray-700 text-lg">
-            Loading Page...
-        </div>
-    );
+    return pageConfig[currentPage] || pageConfig.dashboard;
+  };
 
-    // Initial app loading (e.g., checking token, fetching user data)
-    if (loading) {
-        return <div className="flex items-center justify-center min-h-screen text-gray-800 text-xl font-semibold">Loading Application...</div>;
+  // Main routing logic
+  const renderContent = () => {
+    // Password reset route (highest priority)
+    if (route.startsWith('/resetpassword/')) {
+      const resetToken = route.split('/')[2];
+      return (
+        <ResetPasswordPage 
+          token={resetToken} 
+          onPasswordReset={() => {
+            handleLogout();
+            window.history.pushState({}, '', '/');
+            setRoute('/');
+          }}
+        />
+      );
     }
 
-    // --- WRAP ALL ROUTING LOGIC IN SUSPENSE ---
+    // Unauthenticated users
+    if (!user) {
+      if (currentPage === 'forgotPassword') {
+        return <ForgotPasswordPage onBackToLogin={() => handleNavigation('dashboard')} />;
+      }
+      return <AuthPage onAuthSuccess={handleAuthSuccess} onNavigate={handleNavigation} />;
+    }
+
+    // Profile setup required
+    if (!user.weight) {
+      return <ProfilePage onProfileSave={handleProfileSave} />;
+    }
+
+    // Main application
     return (
-        <div className="App">
-            <Suspense fallback={<PageFallbackLoader />}>
-                {(() => {
-                    // STEP 1: Always check for the password reset route first. This takes priority over everything else.
-                    if (route.startsWith('/resetpassword/')) {
-                        const resetToken = route.split('/')[2];
-                        return <ResetPasswordPage token={resetToken} onPasswordReset={() => {
-                            handleLogout(); 
-                            window.history.pushState({}, '', '/'); 
-                            setRoute('/');
-                        }}/>;
-                    }
-
-                    // STEP 2: If it's not a password reset, THEN check if the user is logged in.
-                    if (!user) {
-                        if (currentPage === 'forgotPassword') {
-                            return <ForgotPasswordPage onBackToLogin={() => setCurrentPage('dashboard')} />;
-                        }
-                        return <AuthPage onAuthSuccess={handleAuthSuccess} onNavigate={setCurrentPage} />;
-                    }
-
-                    // STEP 3: Handle the logged-in user's journey.
-                    if (!user.weight) {
-                        return <ProfilePage onProfileSave={handleProfileSave} />;
-                    }
-
-                    // STEP 4: If all checks pass, show the main application.
-                    return (
-                        <AppLayout 
-                            user={user} 
-                            currentPage={currentPage}
-                            onNavigate={setCurrentPage}
-                            onLogout={handleLogout}
-                        >
-                            {renderLoggedInPages()}
-                        </AppLayout>
-                    );
-                })()}
-            </Suspense>
-        </div>
+      <AppLayout 
+        user={user} 
+        currentPage={currentPage}
+        onNavigate={handleNavigation}
+        onLogout={handleLogout}
+      >
+        {renderLoggedInPages()}
+      </AppLayout>
     );
-    // --- END SUSPENSE WRAP ---
+  };
+
+  if (loading) {
+    return <AppLoading />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Suspense fallback={<PageFallbackLoader />}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${route}-${currentPage}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="w-full"
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
+      </Suspense>
+    </div>
+  );
 }
 
 export default App;
