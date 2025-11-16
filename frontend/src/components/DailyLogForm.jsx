@@ -1,5 +1,5 @@
 // components/DailyLogForm.jsx
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   PlusCircle,
@@ -11,6 +11,9 @@ import {
   AlertCircle,
   Trash2,
   X,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import AutocompleteInput from "./AutocompleteInput";
 
@@ -19,6 +22,228 @@ const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
 };
+
+/* ───────────────────────── Modern Date Picker (No deps) ─────────────────── */
+function pad(n) {
+  return String(n).padStart(2, "0");
+}
+function formatYmd(d) {
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  return `${y}-${m}-${day}`;
+}
+function parseYmd(ymd) {
+  if (!ymd) return null;
+  const [y, m, d] = ymd.split("-").map((x) => parseInt(x, 10));
+  if (!y || !m || !d) return null;
+  const dt = new Date(y, m - 1, d);
+  dt.setHours(0, 0, 0, 0);
+  return dt;
+}
+function startOfMonth(d) {
+  const dt = new Date(d.getFullYear(), d.getMonth(), 1);
+  dt.setHours(0, 0, 0, 0);
+  return dt;
+}
+function endOfMonth(d) {
+  const dt = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  dt.setHours(0, 0, 0, 0);
+  return dt;
+}
+function addMonths(d, n) {
+  const dt = new Date(d);
+  dt.setMonth(dt.getMonth() + n);
+  return dt;
+}
+function isSameDay(a, b) {
+  return (
+    a &&
+    b &&
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+function getMonthMatrix(d) {
+  const first = startOfMonth(d);
+  const startWeekday = (first.getDay() + 7) % 7; // 0=Sun
+  const start = new Date(first);
+  start.setDate(first.getDate() - startWeekday);
+
+  const cells = [];
+  for (let i = 0; i < 42; i++) {
+    const cell = new Date(start);
+    cell.setDate(start.getDate() + i);
+    cell.setHours(0, 0, 0, 0);
+    cells.push(cell);
+  }
+  return cells;
+}
+
+const ModernDatePicker = ({
+  value, // "YYYY-MM-DD"
+  onChange,
+  max, // "YYYY-MM-DD" (today)
+  label = "Choose a date (past only)",
+}) => {
+  const [open, setOpen] = useState(false);
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+  const maxDate = useMemo(() => parseYmd(max) || today, [max, today]);
+  const selectedDate = useMemo(() => parseYmd(value), [value]);
+
+  const [viewDate, setViewDate] = useState(() => selectedDate || today);
+
+  useEffect(() => {
+    if (selectedDate) setViewDate(selectedDate);
+  }, [selectedDate]);
+
+  const monthCells = useMemo(() => getMonthMatrix(viewDate), [viewDate]);
+
+  const monthLabel = useMemo(
+    () =>
+      viewDate.toLocaleString(undefined, {
+        month: "long",
+        year: "numeric",
+      }),
+    [viewDate]
+  );
+
+  const dayNames = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(undefined, { weekday: "short" });
+    const base = new Date(2025, 0, 5); // Sunday
+    return [...Array(7)].map((_, i) =>
+      formatter.format(new Date(base.getFullYear(), base.getMonth(), base.getDate() + i))
+    );
+  }, []);
+
+  const handleSelect = (d) => {
+    if (d.getTime() > maxDate.getTime()) return;
+    onChange(formatYmd(d));
+    setOpen(false);
+  };
+
+  const nextMonth = useMemo(() => addMonths(viewDate, 1), [viewDate]);
+
+  return (
+    <div className="relative">
+      <label htmlFor="log-date" className="block text-sm font-medium text-slate-700 mb-2">
+        {label}
+      </label>
+
+      {/* Display field */}
+      <button
+        id="log-date"
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between rounded-xl border border-slate-300 bg-white/80 backdrop-blur px-4 py-2.5 text-sm shadow-sm hover:shadow transition-all focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <span className="text-slate-800">
+          {selectedDate ? formatYmd(selectedDate) : formatYmd(today)}
+        </span>
+        <Calendar size={18} className="text-slate-500" />
+      </button>
+
+      {/* Popover */}
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Calendar"
+          className="absolute z-50 mt-2 w-[20rem] rounded-2xl border border-slate-200 bg-white/90 backdrop-blur shadow-xl p-3"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-2 py-1">
+            <button
+              type="button"
+              onClick={() => setViewDate((d) => addMonths(d, -1))}
+              className="p-2 rounded-lg hover:bg-slate-100 active:scale-95 transition"
+              aria-label="Previous month"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="font-semibold text-slate-800">{monthLabel}</div>
+            <button
+              type="button"
+              onClick={() => setViewDate((d) => addMonths(d, 1))}
+              className="p-2 rounded-lg hover:bg-slate-100 active:scale-95 transition disabled:opacity-30"
+              aria-label="Next month"
+              /* ✅ FIX: Only disable if the FIRST day of next month is after maxDate */
+              disabled={startOfMonth(nextMonth).getTime() > maxDate.getTime()}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          {/* Weekday headers */}
+          <div className="grid grid-cols-7 gap-1 px-1 pt-2 pb-1 text-xs font-medium text-slate-500">
+            {dayNames.map((d) => (
+              <div key={d} className="text-center">{d}</div>
+            ))}
+          </div>
+
+          {/* Days grid */}
+          <div className="grid grid-cols-7 gap-1 p-1">
+            {monthCells.map((d, idx) => {
+              const inThisMonth = d.getMonth() === viewDate.getMonth();
+              const isToday = isSameDay(d, today);
+              const isSelected = selectedDate && isSameDay(d, selectedDate);
+              const disabled = d.getTime() > maxDate.getTime();
+
+              return (
+                <button
+                  key={`${d.toISOString()}-${idx}`}
+                  type="button"
+                  onClick={() => handleSelect(d)}
+                  disabled={disabled}
+                  className={[
+                    "h-9 rounded-xl text-sm transition-all focus:outline-none",
+                    "flex items-center justify-center",
+                    inThisMonth ? "text-slate-700" : "text-slate-400",
+                    disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-slate-100 active:scale-95",
+                    isSelected ? "bg-violet-600 text-white hover:bg-violet-600" : "",
+                    !isSelected && isToday ? "ring-1 ring-violet-400" : "",
+                  ].join(" ")}
+                  aria-current={isToday ? "date" : undefined}
+                >
+                  {d.getDate()}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between mt-2 px-2">
+            <button
+              type="button"
+              onClick={() => {
+                onChange(formatYmd(today));
+                setViewDate(today);
+                setOpen(false);
+              }}
+              className="text-sm text-violet-600 hover:text-violet-700"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="text-sm text-slate-500 hover:text-slate-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+/* ───────────────────────────── End Date Picker ──────────────────────────── */
 
 /* --------------------------- Nutrition Section --------------------------- */
 const NutritionSection = ({ formData, onNutritionChange }) => (
@@ -209,14 +434,58 @@ const DailyLogForm = ({
   cardioSuggestions,
   workoutSplitSuggestions,
 }) => {
+  // Local YYYY-MM-DD for defaulting and max constraint
+  const todayLocal = useMemo(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }, []);
+
+  // Default date to today on mount if absent
+  useEffect(() => {
+    if (!formData?.date) {
+      setFormData({ ...(formData || {}), date: todayLocal });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setFormData, todayLocal]);
+
   return (
     <motion.form
       variants={itemVariants}
-      initial="visible"   // keep visible; parent handles skeleton timing
+      initial="visible"
       animate="visible"
       onSubmit={onSubmit}
       className="space-y-8"
     >
+      {/* ── Modern Date Picker ─────────────────────────────────────────────── */}
+      <motion.section
+        variants={itemVariants}
+        initial="visible"
+        animate="visible"
+        className="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm"
+      >
+        <h3 className="flex items-center gap-3 text-lg font-semibold text-slate-800 mb-4">
+          <span className="p-2 bg-violet-100 rounded-lg text-violet-600">
+            <Calendar size={20} />
+          </span>
+          Log Date
+        </h3>
+
+        <div className="max-w-xs">
+          <ModernDatePicker
+            value={formData?.date || todayLocal}
+            onChange={(newYmd) => setFormData({ ...formData, date: newYmd })}
+            max={todayLocal}
+            label="Choose a date (past only)"
+          />
+          <p className="mt-2 text-xs text-slate-500">
+            You can backfill a previous day. Future dates are disabled.
+          </p>
+        </div>
+      </motion.section>
+
       {/* Weight */}
       <motion.section
         variants={itemVariants}

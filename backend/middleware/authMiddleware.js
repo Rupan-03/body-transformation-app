@@ -5,17 +5,17 @@ module.exports = function (req, res, next) {
   try {
     let token;
 
-    // 1️⃣ Try cookie first (for secure automatic login)
+    // 1️⃣ Try cookie first
     if (req.cookies && req.cookies.token) {
       token = req.cookies.token;
     }
 
-    // 2️⃣ Fallback: try Authorization header (for manual Bearer tokens)
+    // 2️⃣ Fallback: try Authorization header 
     if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
     }
 
-    // 3️⃣ Legacy support: x-auth-token header (for your existing setup)
+    // 3️⃣ Legacy support: x-auth-token header 
     if (!token && req.header('x-auth-token')) {
       token = req.header('x-auth-token');
     }

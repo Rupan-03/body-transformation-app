@@ -31,6 +31,7 @@ const formatWeekHeader = (weekKey, index) => {
 
 /* --------------------------------- state --------------------------------- */
 const initialFormData = {
+  // date is managed by DailyLogForm (it sets today if missing)
   weight: "",
   nutrition: {
     breakfast: { calories: "", protein: "", fat: "", carbs: "" },
@@ -74,6 +75,7 @@ export default function DailyLog({
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   /* -------------------------------- effects -------------------------------- */
+  // Load full list (for history/suggestions)
   useEffect(() => {
     const fetchLogs = async () => {
       try {
@@ -138,10 +140,15 @@ export default function DailyLog({
     setWorkoutSplitSuggestions([...splitSet].slice(0, 50));
   };
 
+  // Base blank form for a specific date
+  const baseFormForDate = (ymd) => ({
+    ...initialFormData,
+    date: String(ymd).slice(0, 10),
+  });
+
   /* ------------------------------ data shaping ----------------------------- */
   const buildSessionsFromUI = ({ strengthExercises, cardioExercises, workoutSplit }) => {
     const sessions = [];
-
     if (Array.isArray(strengthExercises) && strengthExercises.length > 0) {
       sessions.push({
         type: "workout",
@@ -155,7 +162,6 @@ export default function DailyLog({
         })),
       });
     }
-
     if (Array.isArray(cardioExercises) && cardioExercises.length > 0) {
       cardioExercises.forEach((c) => {
         sessions.push({
@@ -174,6 +180,12 @@ export default function DailyLog({
 
   const buildPartialPayloadFromForm = (data) => {
     const payload = {};
+
+    // ✅ include the selected date as "YYYY-MM-DD"
+    if (data.date) {
+      payload.date = String(data.date).slice(0, 10);
+    }
+
     if (data.weight !== "" && data.weight !== null) payload.weight = Number(data.weight);
 
     const meals = ["breakfast", "lunch", "dinner"];
@@ -200,6 +212,7 @@ export default function DailyLog({
     return payload;
   };
 
+  
   const resetFormFieldsThatWereSubmitted = (submittedPayload) => {
     const next = { ...formData };
     if ("weight" in submittedPayload) next.weight = "";
@@ -212,6 +225,74 @@ export default function DailyLog({
     setFormData(next);
   };
 
+  /* --------------------- NEW: hydrate form for a given date ---------------- */
+  // Build a fresh form (no carry-over) from a server log
+const hydrateFormFromLog = (base, log) => {
+  if (!log) return base;
+
+  const workoutSessions = (log.sessions || []).filter((s) => s.type === "workout");
+  const cardioSessions  = (log.sessions || []).filter((s) => s.type === "cardio");
+
+  const strengthExercises = workoutSessions.flatMap((s) =>
+    (s.exercises || []).map((ex) => ({
+      name: ex.name || "",
+      sets: (ex.sets || []).map((st) => ({
+        reps: typeof st.reps === "number" ? st.reps : "",
+        weight: typeof st.weight === "number" ? st.weight : "",
+      })),
+    }))
+  );
+
+  const cardioExercises = cardioSessions.map((s) => ({
+    type: s.name || "",
+    duration: typeof s.durationMinutes === "number" ? s.durationMinutes : "",
+    distance: typeof s.distanceKm === "number" ? s.distanceKm : "",
+  }));
+
+  const workoutSplit = workoutSessions[0]?.name || "";
+
+  return {
+    ...base, // <- start from a clean slate for this date
+    weight: typeof log.weight === "number" ? log.weight : "",
+    nutrition: {
+      breakfast: { ...base.nutrition.breakfast, ...(log.nutrition?.breakfast || {}) },
+      lunch:     { ...base.nutrition.lunch,     ...(log.nutrition?.lunch || {}) },
+      dinner:    { ...base.nutrition.dinner,    ...(log.nutrition?.dinner || {}) },
+    },
+    strengthExercises: strengthExercises,
+    cardioExercises: cardioExercises,
+    workoutSplit,
+  };
+};
+
+  const fetchLogForDate = async (ymd, setter) => {
+  if (!ymd) return;
+  const normalized = String(ymd).slice(0, 10);
+  const base = baseFormForDate(normalized);
+
+  try {
+    const { data } = await axios.get(LOGS_API_URL, { params: { date: normalized } });
+    const log = data || null;
+
+    // If log exists → hydrate from server; else → blank for that date
+    setter(() => hydrateFormFromLog(base, log));
+  } catch (e) {
+    console.error("Failed to load log for date", normalized, e);
+    // On error, still ensure the page is blank for that date (no carry-over)
+    setter(() => base);
+  }
+};
+
+
+  // Whenever the selected date changes (DailyLogForm sets it), load that day's saved log
+  useEffect(() => {
+  if (formData?.date) {
+    fetchLogForDate(formData.date, setFormData);
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [formData?.date]);
+
+
   /* ------------------------------ create flow ------------------------------ */
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -221,10 +302,23 @@ export default function DailyLog({
       setError("Please enter at least one field to save.");
       return;
     }
+
+    // small console debugger
+    try {
+      console.groupCollapsed("[DEBUG] POST /logs payload");
+      console.log(payload);
+    } finally {
+      console.groupEnd();
+    }
+
     try {
       await axios.post(LOGS_API_URL, payload);
       await refreshLogsAfterChange();
-      resetFormFieldsThatWereSubmitted(payload);
+
+      // Keep this page populated for that date:
+      resetFormFieldsThatWereSubmitted(payload); // (kept)
+      await fetchLogForDate(formData.date, setFormData); // <- rehydrate from server
+
     } catch (err) {
       console.error(err);
       setError("Failed to save your log. Please try again.");
@@ -258,7 +352,7 @@ export default function DailyLog({
   };
 
   const handleEditSubmit = async (e) => {
-    e?.preventDefault(); // defensive
+    e?.preventDefault();
     if (!logToEdit) return;
     setIsSavingEdit(true);
     setEditError("");
@@ -272,6 +366,12 @@ export default function DailyLog({
     try {
       await axios.put(`${LOGS_API_URL}/${logToEdit._id}`, payload);
       await refreshLogsAfterChange();
+
+      // If the edit was for the currently selected date, refresh the form too
+      if (formData?.date) {
+        await fetchLogForDate(formData.date, setFormData);
+      }
+
       setIsEditModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -292,6 +392,14 @@ export default function DailyLog({
     try {
       await axios.delete(`${LOGS_API_URL}/${logToDelete}`);
       await refreshLogsAfterChange();
+
+      // If the deleted log belongs to the currently selected date, clear the form
+      if (formData?.date) {
+        setFormData((prev) => ({
+          ...initialFormData,
+          date: prev.date, // keep the same date, clear the contents
+        }));
+      }
     } catch (err) {
       console.error(err);
     } finally {

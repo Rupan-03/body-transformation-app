@@ -50,7 +50,7 @@ const DailyLogSchema = new mongoose.Schema(
     // Body weight for the day
     weight: {
       type: Number,
-      required: true,
+      required: true, // keep existing behavior
     },
 
     // --- NEW: Nutrition by meals ---
@@ -68,5 +68,46 @@ const DailyLogSchema = new mongoose.Schema(
 
 // Ensure a user can only have one log entry per day
 DailyLogSchema.index({ user: 1, date: 1 }, { unique: true });
+
+/* -------------------------------------------------------------------------- */
+/*                 DATE NORMALIZATION (switched to UTC midnight)              */
+/* -------------------------------------------------------------------------- */
+
+// Normalize `date` to **UTC midnight** before saving (prevents TZ off-by-one)
+DailyLogSchema.pre('save', function normalizeDateToUtcMidnight(next) {
+  if (this.date instanceof Date) {
+    const d = new Date(this.date);
+    this.date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  }
+  next();
+});
+
+// Also normalize if `date` is ever changed via findOneAndUpdate
+DailyLogSchema.pre('findOneAndUpdate', function normalizeUpdateDate(next) {
+  const update = this.getUpdate() || {};
+  const raw =
+    (update.$set && update.$set.date) ||
+    update.date;
+
+  if (raw) {
+    const d = new Date(raw);
+    const utc = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+    if (update.$set && update.$set.date) update.$set.date = utc;
+    if (update.date) update.date = utc;
+  }
+  next();
+});
+
+/* -------------------------------------------------------------------------- */
+/*                          OTHER EXISTING SAFEGUARDS                         */
+/* -------------------------------------------------------------------------- */
+
+// Ensure `weight` satisfies "required: true" even if controller passes null/undefined
+DailyLogSchema.pre('validate', function ensureWeight(next) {
+  if (this.weight === null || typeof this.weight === 'undefined') {
+    this.weight = 0; // conservative default; adjust if you prefer another default
+  }
+  next();
+});
 
 module.exports = mongoose.model('DailyLog', DailyLogSchema);

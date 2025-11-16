@@ -17,7 +17,7 @@ const authMiddleware = require('../../middleware/authMiddleware');
 router.get('/', authMiddleware, getUserLogs);
 
 // @route   POST /api/logs
-// @desc    Create or update today's log
+// @desc    Create or update a log (today by default; accepts optional past `date`)
 // @access  Private
 router.post('/', authMiddleware, createOrUpdateLog);
 
